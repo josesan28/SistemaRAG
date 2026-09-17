@@ -50,18 +50,18 @@ from hdt5.shared.model_config import get_model
 
 
 def build_agentes(model):
-    """Devuelve (agente_inicial, todos_los_agentes) ya cableados con handoffs.
-
-    TODO: implementar según los pasos 1-4 de arriba.
-    """
+    """Devuelve el agente inicial y los especialistas disponibles."""
     faq_agent = build_faq_agent(model)
     weather_agent = build_weather_agent(model)
 
-    # TODO: asignar handoffs bidireccionales, por ejemplo:
-    # faq_agent.handoffs = [weather_agent]
-    # weather_agent.handoffs = [faq_agent]
+    faq_agent.instructions += (
+        "\n5. Si el usuario solicita agendar una cita o consultar el clima "
+        "para una fecha de salto, transfiere la conversación al Agente de "
+        "Citas y Clima. No intentes responder esa solicitud con `faq_tool`."
+    )
+    faq_agent.handoffs = [weather_agent]
 
-    agente_inicial = faq_agent  # TODO: decide si este es el punto de entrada correcto
+    agente_inicial = faq_agent
     return agente_inicial, [faq_agent, weather_agent]
 
 
