@@ -48,6 +48,7 @@ from dotenv import load_dotenv
 from agents import Agent, Runner
 
 from hdt5.shared.agents_factory import build_faq_agent, build_weather_agent
+from hdt5.shared.console import configure_console
 from hdt5.shared.faq_tool import prepare_faq_search
 from hdt5.shared.model_config import get_model
 
@@ -78,6 +79,7 @@ def build_manager_principal(model) -> Agent:
 
 
 def main() -> None:
+    configure_console()
     load_dotenv()
     model = get_model()
     prepare_faq_search()

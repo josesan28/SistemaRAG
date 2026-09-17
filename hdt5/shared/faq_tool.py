@@ -1,30 +1,58 @@
-"""Envuelve `buscar_faq` (HDT4) como function_tool del Agents SDK.
+"""Tool compartida que reutiliza el RAG simple de la HDT4.
 
-No se reimplementa nada de la HDT4: solo se importa `buscar_faq` y se le
-pone una firma que el Agents SDK entiende. Corre `python -m hdt5.centralizada.main`
-etc. desde la raíz del repo para que este import funcione.
+La HDT4 usa el documento completo de FAQs como contexto del modelo. Esta
+adaptación conserva ese tipo de retrieval y lo expone como una ``function_tool``
+para que las tres arquitecturas consuman la misma fuente.
 """
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from agents import function_tool
 
-from parachute_faq_tool import buscar_faq as _buscar_faq
-from parachute_faq_tool import prepare_faq_search  # noqa: F401  (re-exportado)
+FAQ_FILE = Path(__file__).resolve().parents[2] / "FAQs_Parachute_SA_Guatemala_2026.txt"
+
+
+@lru_cache(maxsize=1)
+def prepare_faq_search() -> str:
+    """Carga y mantiene en memoria la base de conocimiento de la HDT4."""
+    if not FAQ_FILE.is_file():
+        raise FileNotFoundError(f"No se encontró el archivo de FAQs: {FAQ_FILE}")
+    return FAQ_FILE.read_text(encoding="utf-8")
+
+
+def _faq_tool_impl(query: str) -> dict[str, Any]:
+    """Implementación pura, separada del decorador para facilitar pruebas."""
+    query = query.strip()
+    if not query:
+        return {
+            "valido": False,
+            "informacion_suficiente": False,
+            "error": "La consulta no puede estar vacía.",
+            "resultados": "",
+        }
+
+    return {
+        "valido": True,
+        "informacion_suficiente": True,
+        "query": query,
+        "fuente": FAQ_FILE.name,
+        "resultados": prepare_faq_search(),
+    }
 
 
 @function_tool
-def buscar_faq(pregunta: str, k: int = 5) -> dict[str, Any]:
-    """Busca en la base oficial de FAQs de Parachute S.A.
-
-    Úsala para CUALQUIER pregunta sobre servicios, políticas o información
-    general de Parachute S.A. No la uses para calendarizar citas ni para
-    preguntas sobre el clima: para eso existe `calendarizar_cita`.
+def faq_tool(query: str) -> dict[str, Any]:
+    """Recupera la base oficial de FAQs para contestar una consulta.
 
     Args:
-        pregunta: Pregunta o necesidad del usuario, en español.
-        k: Cantidad de FAQs candidatas a recuperar (1-10).
+        query: Pregunta o necesidad del usuario, en español.
     """
-    return _buscar_faq(pregunta=pregunta, k=k)
+    return _faq_tool_impl(query)
+
+
+# Alias temporal para no romper imports escritos antes de acordar la interfaz.
+buscar_faq = faq_tool

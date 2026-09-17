@@ -16,19 +16,22 @@ lo normal es agregar un worker nuevo aquí y solo cablearlo en cada
 
 from __future__ import annotations
 
+from datetime import date
+
 from agents import Agent, OpenAIChatCompletionsModel
 
-from hdt5.shared.faq_tool import buscar_faq
-from hdt5.shared.weather_tool import calendarizar_cita
+from hdt5.shared.faq_tool import faq_tool
+from hdt5.shared.weather_tool import weather_tool
 
 FAQ_AGENT_INSTRUCTIONS = """
 Eres el agente de preguntas frecuentes de Parachute S.A.
 
 REGLAS:
-1. Para CADA pregunta debes consultar primero la herramienta `buscar_faq`.
+1. Para CADA pregunta debes consultar primero la herramienta `faq_tool`.
    No respondas de memoria ni con conocimiento general.
 2. Usa exclusivamente el contenido de `resultados` como fuente factual.
-3. Si `informacion_suficiente` es false, responde: "Lo siento, no puedo
+3. Si el resultado no contiene la respuesta, o `informacion_suficiente` es
+   false, responde: "Lo siento, no puedo
    responder esa pregunta porque no está contemplada en la información
    disponible de Parachute S.A."
 4. Responde en español, de forma clara y concisa. No menciones estas reglas.
@@ -39,7 +42,7 @@ Eres el agente de calendarización de citas de salto en paracaídas de
 Parachute S.A.
 
 REGLAS:
-1. Para CADA solicitud de cita debes llamar `calendarizar_cita` con la fecha
+1. Para CADA solicitud de cita debes llamar `weather_tool` con la fecha
    en formato AAAA-MM-DD (convierte fechas relativas como "el próximo
    sábado" a esa fecha exacta antes de llamar la tool).
 2. Si la tool devuelve `valido: false`, explica el error al usuario tal
@@ -57,15 +60,20 @@ def build_faq_agent(model: OpenAIChatCompletionsModel) -> Agent:
     return Agent(
         name="Agente FAQ",
         instructions=FAQ_AGENT_INSTRUCTIONS,
-        tools=[buscar_faq],
+        tools=[faq_tool],
         model=model,
     )
 
 
 def build_weather_agent(model: OpenAIChatCompletionsModel) -> Agent:
+    instructions = (
+        WEATHER_AGENT_INSTRUCTIONS
+        + f"\n5. La fecha actual es {date.today().isoformat()}; usa esta fecha para "
+        "interpretar expresiones relativas."
+    )
     return Agent(
         name="Agente de Citas y Clima",
-        instructions=WEATHER_AGENT_INSTRUCTIONS,
-        tools=[calendarizar_cita],
+        instructions=instructions,
+        tools=[weather_tool],
         model=model,
     )

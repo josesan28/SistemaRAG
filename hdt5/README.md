@@ -24,8 +24,8 @@ para hablar con el endpoint compatible de Groq en vez del de OpenAI.
 hdt5/
 ├── shared/                  # Capa común — NO duplicar esta lógica en ninguna arquitectura
 │   ├── model_config.py      # Configura el Agents SDK para usar Groq
-│   ├── faq_tool.py          # function_tool que envuelve buscar_faq (HDT4)
-│   ├── weather_tool.py      # function_tool calendarizar_cita: Open-Meteo + criterios de seguridad
+│   ├── faq_tool.py          # faq_tool(query): reutiliza el RAG simple de HDT4
+│   ├── weather_tool.py      # weather_tool(fecha): Open-Meteo + criterios de seguridad
 │   └── agents_factory.py    # build_faq_agent() y build_weather_agent(): los 2 workers reutilizables
 ├── centralizada/main.py     # 1 manager, workers llamados con Agent.as_tool()     [Persona 1 — LISTO]
 ├── descentralizada/main.py  # Agentes independientes con handoffs                [Persona 2 — TODO]
@@ -38,6 +38,18 @@ Cada `main.py` se ejecuta con, por ejemplo:
 python -m hdt5.centralizada.main
 python -m hdt5.descentralizada.main
 python -m hdt5.jerarquica.main
+```
+
+La interfaz compartida que deben consumir las tres arquitecturas es:
+
+```python
+from hdt5.shared import faq_tool, weather_tool
+```
+
+Para comprobar la capa compartida sin consumir las APIs de Groq u Open-Meteo:
+
+```bash
+python -m unittest discover -s hdt5/tests -v
 ```
 
 ## Por qué está separado así
@@ -53,5 +65,6 @@ en un solo lugar — nunca se toca dentro de `centralizada/`,
 
 - [ ] Completar `descentralizada/main.py` (persona 2)
 - [ ] Completar `jerarquica/main.py` (persona 3)
-- [ ] Diagrama de cada arquitectura (uno por persona, al terminar la suya)
+- [x] Diagrama de arquitectura centralizada (`centralizada/DIAGRAMA.md`)
+- [ ] Diagramas descentralizado y jerárquico (cada persona al terminar la suya)
 - [ ] PDF con las respuestas a las 2 preguntas del enunciado (ver `PREGUNTAS.md`, borrador para discutir juntos)

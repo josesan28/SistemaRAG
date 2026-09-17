@@ -37,10 +37,13 @@ def _parse_fecha(fecha: str) -> date:
         ) from error
 
 
-def _validar_ventana(fecha_solicitada: date) -> dict[str, Any] | None:
+def _validar_ventana(
+    fecha_solicitada: date, hoy: date | None = None
+) -> dict[str, Any] | None:
     """Devuelve un dict de error si la fecha está fuera de rango; si no, None."""
-    hoy = date.today()
-    limite = hoy + timedelta(days=FORECAST_DAYS_LIMIT)
+    hoy = hoy or date.today()
+    # Open-Meteo cuenta hoy como el primer día de los 16 disponibles.
+    limite = hoy + timedelta(days=FORECAST_DAYS_LIMIT - 1)
 
     if fecha_solicitada < hoy:
         return {
@@ -54,8 +57,8 @@ def _validar_ventana(fecha_solicitada: date) -> dict[str, Any] | None:
         return {
             "valido": False,
             "error": (
-                f"Open-Meteo solo da pronóstico hasta {FORECAST_DAYS_LIMIT} días "
-                f"a futuro (hasta {limite.isoformat()}). No se puede calendarizar "
+                f"Open-Meteo solo da una ventana de {FORECAST_DAYS_LIMIT} días "
+                f"incluyendo hoy (hasta {limite.isoformat()}). No se puede calendarizar "
                 f"la cita para el {fecha_solicitada.isoformat()}; pide una fecha "
                 f"dentro de ese rango."
             ),
@@ -122,7 +125,7 @@ def _fetch_open_meteo(fecha: date) -> dict[str, float]:
         "latitude": LANDING_LAT,
         "longitude": LANDING_LON,
         "daily": ",".join(DAILY_VARS),
-        "timezone": "auto",
+        "timezone": "America/Guatemala",
         "start_date": fecha.isoformat(),
         "end_date": fecha.isoformat(),
         "wind_speed_unit": "kmh",
@@ -136,17 +139,28 @@ def _fetch_open_meteo(fecha: date) -> dict[str, float]:
     if not daily.get("time"):
         raise RuntimeError("Open-Meteo no devolvió datos para esa fecha.")
 
-    return {
-        "wind_gust_10m": daily["wind_gusts_10m_max"][0],
-        "temperature_2m": daily["temperature_2m_max"][0],
-        "precipitation": daily["precipitation_sum"][0],
-        "cloud_cover": daily["cloud_cover_mean"][0],
-        "wind_speed_10m": daily["wind_speed_10m_max"][0],
+    variable_map = {
+        "wind_gust_10m": "wind_gusts_10m_max",
+        "temperature_2m": "temperature_2m_max",
+        "precipitation": "precipitation_sum",
+        "cloud_cover": "cloud_cover_mean",
+        "wind_speed_10m": "wind_speed_10m_max",
     }
+    datos: dict[str, float] = {}
+    for nombre_publico, nombre_api in variable_map.items():
+        try:
+            valor = daily[nombre_api][0]
+            if valor is None:
+                raise ValueError
+            datos[nombre_publico] = float(valor)
+        except (KeyError, IndexError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                f"Open-Meteo no devolvió un valor válido para {nombre_api}."
+            ) from error
+    return datos
 
 
-@function_tool
-def calendarizar_cita(fecha: str) -> dict[str, Any]:
+def _weather_tool_impl(fecha: str) -> dict[str, Any]:
     """Evalúa si una fecha es apta para saltar en paracaídas según el clima.
 
     Args:
@@ -164,7 +178,13 @@ def calendarizar_cita(fecha: str) -> dict[str, Any]:
     if error_ventana is not None:
         return error_ventana
 
-    datos = _fetch_open_meteo(fecha_solicitada)
+    try:
+        datos = _fetch_open_meteo(fecha_solicitada)
+    except (requests.RequestException, RuntimeError) as error:
+        return {
+            "valido": False,
+            "error": f"No fue posible consultar Open-Meteo: {error}",
+        }
     clasificacion = _clasificar(datos)
 
     return {
@@ -175,3 +195,17 @@ def calendarizar_cita(fecha: str) -> dict[str, Any]:
         "veredicto": clasificacion["veredicto"],
         "razones": clasificacion["razones"],
     }
+
+
+@function_tool
+def weather_tool(fecha: str) -> dict[str, Any]:
+    """Evalúa si una fecha es apta para saltar según el clima.
+
+    Args:
+        fecha: Fecha deseada en formato AAAA-MM-DD.
+    """
+    return _weather_tool_impl(fecha)
+
+
+# Alias temporal para no romper imports escritos antes de acordar la interfaz.
+calendarizar_cita = weather_tool
