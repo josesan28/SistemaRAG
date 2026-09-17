@@ -1,94 +1,152 @@
-Parachute S.A. - Agente FAQ con RAG simple
-Demo para implementar un agente básico de preguntas frecuentes para
-Parachute S.A. utilizando una arquitectura RAG simple y una API compatible
-con el esquema de OpenAI.
-Arquitectura
-El proyecto utiliza la versión más sencilla de RAG solicitada en la hoja:
-Retrieval: se carga el archivo `FAQs_Parachute_SA_Guatemala_2026.txt`
-desde el sistema de archivos.
-Augmentation: el contenido completo del archivo se inyecta como
-contexto en la solicitud al modelo.
-Generation: el modelo responde utilizando únicamente ese contexto.
-No se utiliza una base vectorial porque el enunciado solicita explícitamente
-una arquitectura simple para un demo.
-Tecnologías
-Python
-OpenAI Python SDK
-Groq como proveedor del modelo
-`python-dotenv` para manejar la API Key
-Modelo `openai/gpt-oss-20b`
-Groq ofrece compatibilidad con el cliente de OpenAI cambiando el `base_url`
-a `https://api.groq.com/openai/v1`.
-Instalación
-Se recomienda Python 3.10+.
+
+# Sistema RAG de FAQs — Parachute S.A.
+
+Agente de terminal que responde únicamente con información recuperada del
+corpus oficial `Corpus_FAQs_Parachute_SA_2026.txt`. Los embeddings se almacenan
+en PostgreSQL con pgvector y el modelo consulta la base mediante function
+calling real con el SDK compatible con OpenAI de Groq.
+
+## Infraestructura (PostgreSQL + pgvector)
+
+### 1. Levantar el contenedor
+
 ```bash
-python -m venv .venv
+docker compose up -d
 ```
-Windows
+
+(o `podman-compose up -d` si usan Podman)
+
+Esto levanta Postgres 16 con la extensión `pgvector` ya instalada
+(imagen `pgvector/pgvector:pg16`) y corre automáticamente `init.sql`
+la primera vez, creando la extensión `vector` y la tabla `faqs`.
+
+Comprueben que el servicio está saludable antes de cargar el corpus:
+
 ```bash
-.venv\Scripts\activate
+docker compose ps
 ```
-Linux / macOS
-```bash
-source .venv/bin/activate
-```
-Instalar dependencias:
-```bash
-pip install -r requirements.txt
-```
-Configuración de la API Key
-Copia `.env.example` como `.env`:
-```bash
-copy .env.example .env
-```
-En Linux/macOS:
+
+> Si ya tenían un contenedor de Postgres corriendo de antes (volumen
+> ya inicializado), `init.sql` no se vuelve a ejecutar solo. En ese
+> caso corran a mano:
+> ```bash
+> docker exec -i parachute_pgvector psql -U parachute -d parachute_faqs < init.sql
+> ```
+
+### 2. Configurar variables de entorno
+
+Copien `.env.example` a `.env` y ajusten si es necesario (los valores
+por defecto ya coinciden con `docker-compose.yml`):
+
 ```bash
 cp .env.example .env
 ```
-Luego coloca tu API Key:
-```env
-GROQ_API_KEY=tu_api_key_aqui
+
+Resumen de las variables disponibles:
+
+| Variable | Uso |
+| --- | --- |
+| `GROQ_API_KEY` | Clave necesaria para autenticar las solicitudes a Groq. |
+| `GROQ_MODEL` | Modelo de Groq utilizado para responder y realizar tool calling. |
+| `FAQ_MAX_COSINE_DISTANCE` | Descarta vecinos poco relevantes; calibren el valor si cambia el corpus o el modelo. |
+| `HF_HUB_DISABLE_PROGRESS_BARS` | Oculta las barras de progreso de Hugging Face Hub. |
+| `HF_HUB_DISABLE_SYMLINKS_WARNING` | Oculta la advertencia de symlinks en Windows. |
+| `HF_HUB_VERBOSITY` | Controla el nivel de mensajes emitidos por Hugging Face Hub. |
+| `TRANSFORMERS_VERBOSITY` | Controla el nivel de mensajes de la librería Transformers. |
+| `SHOW_TOOL_TRACE` | Con `true`, muestra en terminal los IDs de las FAQs recuperadas. |
+| `POSTGRES_HOST` | Dirección del servidor de PostgreSQL. |
+| `POSTGRES_PORT` | Puerto de conexión y puerto que Docker expone en la máquina. |
+| `POSTGRES_DB` | Nombre de la base de datos que almacena las FAQs. |
+| `POSTGRES_USER` | Usuario utilizado para conectarse a PostgreSQL. |
+| `POSTGRES_PASSWORD` | Contraseña del usuario de PostgreSQL. |
+
+Solo `GROQ_API_KEY` debe reemplazarse obligatoriamente. Los demás valores de
+`.env.example` funcionan con la configuración incluida en el repositorio.
+
+### 3. Instalar dependencias de Python
+
+```bash
+pip install -r requirements.txt
 ```
-Nunca subas `.env` al repositorio. Ya está incluido en `.gitignore`.
-Ejecutar
+
+La primera ejecución de `sentence-transformers` puede descargar el modelo
+multilingüe `paraphrase-multilingual-MiniLM-L12-v2`; por eso requiere conexión
+a internet una sola vez, salvo que el modelo ya esté en caché.
+
+### 4. Cargar los FAQs a la base de datos
+
+```bash
+python load_faqs.py Corpus_FAQs_Parachute_SA_2026.txt
+```
+
+Si ya habían cargado la base con una versión anterior del proyecto, ejecuten
+este comando nuevamente: el UPSERT reemplaza los embeddings existentes por los
+del modelo multilingüe y no duplica filas.
+
+El script:
+1. Parsea el corpus (120 FAQs, delimitadas por bloques `ID:` / `CATEGORÍA:` / `PREGUNTA:` / `RESPUESTA:` / `METADATA:`).
+2. Genera un embedding de 384 dimensiones por FAQ con `sentence-transformers`
+   (`paraphrase-multilingual-MiniLM-L12-v2`) a partir de la pregunta. Se eligió
+   este modelo multilingüe porque las consultas y el corpus están en español;
+   evita que las respuestas repetitivas del dump distorsionen la búsqueda.
+3. Hace un `UPSERT` a la tabla `faqs` en Postgres (se puede correr varias veces sin duplicar filas).
+
+Para confirmar que cargó bien:
+
+```bash
+docker exec -it parachute_pgvector psql -U parachute -d parachute_faqs -c "SELECT count(*) FROM faqs;"
+```
+
+Debería devolver `120`.
+
+### 5. Ejecutar el agente
+
 ```bash
 python main.py
 ```
-El programa permanecerá en un loop permitiendo realizar múltiples preguntas.
-Para terminar:
+
+El agente conserva una sesión interactiva: escriban `Bye` o usen `Ctrl-C` para
+salir. Si `SHOW_TOOL_TRACE=true`, también imprime una línea `[Herramienta]
+buscar_faq` con los IDs recuperados. La traza está desactivada por defecto y no
+afecta la consulta a PostgreSQL ni la respuesta del agente.
+
+El flujo es el siguiente:
+
 ```text
-Bye
+pregunta → modelo solicita buscar_faq → pgvector recupera evidencia
+         → resultado con rol tool → modelo redacta usando solo esa evidencia
 ```
-o presiona:
-```text
-Ctrl-C
+
+Si ninguna coincidencia supera el umbral de relevancia, el programa devuelve:
+
+> Lo siento, no puedo responder esa pregunta porque no está contemplada en la información disponible de Parachute S.A.
+
+No se incluye el archivo completo en el prompt ni se usa el archivo legado
+`FAQs_Parachute_SA_Guatemala_2026.txt` como fuente del agente.
+
+### Pruebas
+
+Las pruebas no requieren Docker, modelo descargado ni una API key:
+
+```bash
+python -m unittest discover -s tests -v
 ```
-Ejemplos para la demostración
-Preguntas que sí están en las FAQs:
-```text
-¿Cuándo y dónde se realizará el evento?
-¿Qué peso máximo puedo tener para saltar?
-¿Necesito experiencia previa?
-¿Qué métodos de pago aceptan?
-¿Qué ropa debo llevar?
-¿Cuánto dura la experiencia completa?
-```
-Pregunta que no está en las FAQs:
-```text
-¿Cuánto cuesta el boleto?
-```
-El agente debe reconocer que esa información no está disponible y no
-inventar un precio.
-Seguridad
-La API Key se obtiene mediante la variable de entorno `GROQ_API_KEY`.
-No se almacena en el código fuente ni en el repositorio.
-Estructura
-```text
-parachute-rag/
-├── FAQs_Parachute_SA_Guatemala_2026.txt
-├── main.py
-├── requirements.txt
-├── .env.example
-├── .gitignore
-└── README.md
-```
+
+Cubren el parser del corpus, la validación de la herramienta y el intercambio
+de mensajes de function calling, incluido el rechazo cuando no hay evidencia.
+
+### Preguntas de validación
+
+- “¿Cómo llego desde la Ciudad de Guatemala al aeródromo?” (logística).
+- “¿Cuál es el límite de peso para realizar el salto?” (requisitos físicos).
+- “¿Qué métodos de pago aceptan?” (precios y pagos).
+- “¿Puedo llevar mi propia cámara durante el salto?” (multimedia).
+- “¿Qué sucede si el clima no permite realizar el salto?” (contingencias).
+- “¿Cuál es la capital de Francia?” (debe rechazarla).
+
+Para una pregunta con varias partes, prueben: “¿Cuál es el límite de peso y qué
+ocurre si hay mal clima?”. El agente debe limitarse a la evidencia recuperada.
+
+## Video del funcionamiento del Agente
+
+Para ver el video de prueba haz click [aquí](https://youtu.be/b2qYmD8pKPQ)
