@@ -16,13 +16,24 @@ Ejecutar desde la raíz del repo:
 from __future__ import annotations
 
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
-from agents import Runner
+from agents import RunContextWrapper, Runner, handoff
 
 from hdt5.shared.agents_factory import build_faq_agent, build_weather_agent
 from hdt5.shared.console import configure_console
 from hdt5.shared.faq_tool import prepare_faq_search
 from hdt5.shared.model_config import get_model
+
+
+class HandoffData(BaseModel):
+    motivo: str
+
+
+async def _registrar_handoff(
+    _context: RunContextWrapper[None], _datos: HandoffData
+) -> None:
+    """Valida los datos requeridos por el esquema antes de transferir."""
 
 
 def build_agentes(model):
@@ -35,15 +46,30 @@ def build_agentes(model):
         "para una fecha de salto, transfiere la conversación al Agente de "
         "Citas y Clima. No intentes responder esa solicitud con `faq_tool`."
     )
-    faq_agent.handoffs = [weather_agent]
+    faq_agent.handoffs = [
+        handoff(
+            agent=weather_agent,
+            on_handoff=_registrar_handoff,
+            input_type=HandoffData,
+        )
+    ]
 
     weather_agent.instructions += (
         "\n6. Si el usuario hace una pregunta sobre servicios, precios, "
         "políticas o información general de Parachute S.A., transfiere la "
         "conversación al Agente FAQ. No intentes responder esa consulta con "
         "`weather_tool`."
+        "\n7. Cuando recibas un handoff, atiende la solicitud directamente. "
+        "No anuncies ni expliques la transferencia al usuario. Si falta una "
+        "fecha exacta, solicítala antes de llamar `weather_tool`."
     )
-    weather_agent.handoffs = [faq_agent]
+    weather_agent.handoffs = [
+        handoff(
+            agent=faq_agent,
+            on_handoff=_registrar_handoff,
+            input_type=HandoffData,
+        )
+    ]
 
     agente_inicial = faq_agent
     return agente_inicial, [faq_agent, weather_agent]
