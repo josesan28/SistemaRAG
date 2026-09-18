@@ -9,30 +9,6 @@ agente en agente; el que responde al final es el que tiene el turno.
                   ^                         |
                   |------(handoff)----------|
 
-TODO (persona 2):
-1. Reutiliza `build_faq_agent` y `build_weather_agent` de
-   `hdt5.shared.agents_factory` (NO reescribas su lógica de tools).
-2. Dale a cada uno un `handoffs=[el_otro]` para que puedan transferirse la
-   conversación entre sí cuando el usuario cambia de tema. En el Agents SDK
-   los handoffs se asignan después de crear ambos agentes, ej.:
-
-       faq_agent = build_faq_agent(model)
-       weather_agent = build_weather_agent(model)
-       faq_agent.handoffs = [weather_agent]
-       weather_agent.handoffs = [faq_agent]
-
-3. Decide con cuál de los dos arranca la conversación (el "entry point" del
-   handoff). Puede ser cualquiera de los dos, o un tercer agente triage muy
-   simple (sin tools propias) que solo decide a quién transferir al inicio
-   —si hacen esto último, sigue siendo descentralizado mientras ese triage
-   no sea un supervisor que llama a los otros como *tools* (eso sería
-   centralizado).
-4. Ajusta las instrucciones de cada agente para que sepan que pueden
-   transferir la conversación (el SDK ya expone esto automáticamente al
-   modelo cuando hay `handoffs`, pero ayuda mencionarlo).
-5. El loop conversacional de abajo ya está listo — solo completa
-   `build_agentes()`.
-
 Ejecutar desde la raíz del repo:
     python -m hdt5.descentralizada.main
 """
@@ -60,6 +36,14 @@ def build_agentes(model):
         "Citas y Clima. No intentes responder esa solicitud con `faq_tool`."
     )
     faq_agent.handoffs = [weather_agent]
+
+    weather_agent.instructions += (
+        "\n6. Si el usuario hace una pregunta sobre servicios, precios, "
+        "políticas o información general de Parachute S.A., transfiere la "
+        "conversación al Agente FAQ. No intentes responder esa consulta con "
+        "`weather_tool`."
+    )
+    weather_agent.handoffs = [faq_agent]
 
     agente_inicial = faq_agent
     return agente_inicial, [faq_agent, weather_agent]
