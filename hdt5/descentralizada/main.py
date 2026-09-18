@@ -9,30 +9,6 @@ agente en agente; el que responde al final es el que tiene el turno.
                   ^                         |
                   |------(handoff)----------|
 
-TODO (persona 2):
-1. Reutiliza `build_faq_agent` y `build_weather_agent` de
-   `hdt5.shared.agents_factory` (NO reescribas su lógica de tools).
-2. Dale a cada uno un `handoffs=[el_otro]` para que puedan transferirse la
-   conversación entre sí cuando el usuario cambia de tema. En el Agents SDK
-   los handoffs se asignan después de crear ambos agentes, ej.:
-
-       faq_agent = build_faq_agent(model)
-       weather_agent = build_weather_agent(model)
-       faq_agent.handoffs = [weather_agent]
-       weather_agent.handoffs = [faq_agent]
-
-3. Decide con cuál de los dos arranca la conversación (el "entry point" del
-   handoff). Puede ser cualquiera de los dos, o un tercer agente triage muy
-   simple (sin tools propias) que solo decide a quién transferir al inicio
-   —si hacen esto último, sigue siendo descentralizado mientras ese triage
-   no sea un supervisor que llama a los otros como *tools* (eso sería
-   centralizado).
-4. Ajusta las instrucciones de cada agente para que sepan que pueden
-   transferir la conversación (el SDK ya expone esto automáticamente al
-   modelo cuando hay `handoffs`, pero ayuda mencionarlo).
-5. El loop conversacional de abajo ya está listo — solo completa
-   `build_agentes()`.
-
 Ejecutar desde la raíz del repo:
     python -m hdt5.descentralizada.main
 """
@@ -40,8 +16,9 @@ Ejecutar desde la raíz del repo:
 from __future__ import annotations
 
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
-from agents import Runner
+from agents import RunContextWrapper, Runner, handoff
 
 from hdt5.shared.agents_factory import build_faq_agent, build_weather_agent
 from hdt5.shared.console import configure_console
@@ -49,19 +26,52 @@ from hdt5.shared.faq_tool import prepare_faq_search
 from hdt5.shared.model_config import get_model
 
 
-def build_agentes(model):
-    """Devuelve (agente_inicial, todos_los_agentes) ya cableados con handoffs.
+class HandoffData(BaseModel):
+    motivo: str
 
-    TODO: implementar según los pasos 1-4 de arriba.
-    """
+
+async def _registrar_handoff(
+    _context: RunContextWrapper[None], _datos: HandoffData
+) -> None:
+    """Valida los datos requeridos por el esquema antes de transferir."""
+
+
+def build_agentes(model):
+    """Devuelve el agente inicial y los especialistas disponibles."""
     faq_agent = build_faq_agent(model)
     weather_agent = build_weather_agent(model)
 
-    # TODO: asignar handoffs bidireccionales, por ejemplo:
-    # faq_agent.handoffs = [weather_agent]
-    # weather_agent.handoffs = [faq_agent]
+    faq_agent.instructions += (
+        "\n5. Si el usuario solicita agendar una cita o consultar el clima "
+        "para una fecha de salto, transfiere la conversación al Agente de "
+        "Citas y Clima. No intentes responder esa solicitud con `faq_tool`."
+    )
+    faq_agent.handoffs = [
+        handoff(
+            agent=weather_agent,
+            on_handoff=_registrar_handoff,
+            input_type=HandoffData,
+        )
+    ]
 
-    agente_inicial = faq_agent  # TODO: decide si este es el punto de entrada correcto
+    weather_agent.instructions += (
+        "\n6. Si el usuario hace una pregunta sobre servicios, precios, "
+        "políticas o información general de Parachute S.A., transfiere la "
+        "conversación al Agente FAQ. No intentes responder esa consulta con "
+        "`weather_tool`."
+        "\n7. Cuando recibas un handoff, atiende la solicitud directamente. "
+        "No anuncies ni expliques la transferencia al usuario. Si falta una "
+        "fecha exacta, solicítala antes de llamar `weather_tool`."
+    )
+    weather_agent.handoffs = [
+        handoff(
+            agent=faq_agent,
+            on_handoff=_registrar_handoff,
+            input_type=HandoffData,
+        )
+    ]
+
+    agente_inicial = faq_agent
     return agente_inicial, [faq_agent, weather_agent]
 
 

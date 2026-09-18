@@ -28,7 +28,7 @@ hdt5/
 │   ├── weather_tool.py      # weather_tool(fecha): Open-Meteo + criterios de seguridad
 │   └── agents_factory.py    # build_faq_agent() y build_weather_agent(): los 2 workers reutilizables
 ├── centralizada/main.py     # 1 manager, workers llamados con Agent.as_tool()     [Persona 1 — LISTO]
-├── descentralizada/main.py  # Agentes independientes con handoffs                [Persona 2 — TODO]
+├── descentralizada/main.py  # Agentes independientes con handoffs                [Persona 2 — LISTO]
 └── jerarquica/main.py       # >=2 managers (manager principal + sub-managers)     [Persona 3 — TODO]
 ```
 
@@ -63,8 +63,9 @@ en un solo lugar — nunca se toca dentro de `centralizada/`,
 
 ## Pendiente
 
-- [ ] Completar `descentralizada/main.py` (persona 2)
+- [x] Completar `descentralizada/main.py` (persona 2)
 - [ ] Completar `jerarquica/main.py` (persona 3)
 - [x] Diagrama de arquitectura centralizada (`centralizada/DIAGRAMA.md`)
-- [ ] Diagramas descentralizado y jerárquico (cada persona al terminar la suya)
+- [x] Diagrama de arquitectura descentralizada (`descentralizada/DIAGRAMA.md`)
+- [ ] Diagrama de arquitectura jerárquica (`jerarquica/DIAGRAMA.md`)
 - [ ] PDF con las respuestas a las 2 preguntas del enunciado (ver `PREGUNTAS.md`, borrador para discutir juntos)
