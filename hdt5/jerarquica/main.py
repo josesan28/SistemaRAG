@@ -1,41 +1,19 @@
 """HT5 — Arquitectura JERÁRQUICA (persona 3).
 
-Se pide AL MENOS 2 managers. La diferencia con la centralizada es que aquí
-hay más de un nivel: un manager principal no llama directo a los workers,
-sino a sub-managers, y esos sub-managers son quienes llaman (`as_tool()`) a
-los workers reales.
-
-Ejemplo de estructura sugerida (puedes ajustarla, con tal de tener 2+
-managers reales):
+El manager principal conserva la conversación con el usuario y solo delega a
+sub-managers de dominio. Cada sub-manager llama como herramienta al worker que
+posee la lógica del dominio; por lo tanto, el manager principal nunca invoca
+workers ni integraciones directamente.
 
     Usuario -> Manager Principal
-                   |-- as_tool --> Sub-Manager "Información"
+                   |-- as_tool --> Sub-Manager Información
                    |                    |-- as_tool --> Agente FAQ
                    |
-                   |-- as_tool --> Sub-Manager "Operaciones"
+                   |-- as_tool --> Sub-Manager Operaciones
                                         |-- as_tool --> Agente de Citas y Clima
 
-Con solo 2 workers esto es un poco artificial (podría hacerse en un solo
-nivel), así que vale la pena justificarlo en el PDF: por ejemplo, agrupar
-"Información" (hoy solo FAQ) y "Operaciones" (hoy solo citas) anticipa que
-Parachute S.A. va a seguir pidiendo funcionalidades nuevas (ya lo advirtió),
-y cada sub-manager podrá absorber los workers nuevos de su dominio sin que
-el manager principal crezca.
-
-TODO (persona 3):
-1. Reutiliza `build_faq_agent` y `build_weather_agent` de
-   `hdt5.shared.agents_factory` — no reimplementes sus tools.
-2. Crea 2 sub-manager `Agent` (uno por dominio), cada uno con
-   `tools=[worker.as_tool(...)]` de su dominio, igual que se hizo en
-   `hdt5/centralizada/main.py` (revísalo como referencia de la sintaxis de
-   `as_tool`).
-3. Crea el manager principal con
-   `tools=[sub_manager_1.as_tool(...), sub_manager_2.as_tool(...)]`.
-4. Escribe las `instructions` de cada nivel: el manager principal debe
-   saber que delega en sub-managers por dominio (no en los workers
-   directamente), y cada sub-manager debe saber en qué worker(s) delegar.
-5. El loop conversacional de abajo ya está listo — solo completa
-   `build_manager_principal()`.
+Esta separación permite incorporar futuros workers de información u
+operaciones sin ampliar las herramientas del manager principal.
 
 Ejecutar desde la raíz del repo:
     python -m hdt5.jerarquica.main
@@ -52,30 +30,96 @@ from hdt5.shared.console import configure_console
 from hdt5.shared.faq_tool import prepare_faq_search
 from hdt5.shared.model_config import get_model
 
+MANAGER_PRINCIPAL_INSTRUCTIONS = """
+Eres el manager principal y la única interfaz con el usuario de Parachute S.A.
+Coordina sub-managers por dominio; no posees herramientas de FAQ ni de clima y
+no debes responder usando conocimiento propio.
+
+- `gestionar_informacion`: úsala para servicios, precios, políticas y cualquier
+  información general de Parachute S.A.
+- `gestionar_operaciones`: úsala para agendar una cita de salto o confirmar si
+  una fecha es apta según el clima.
+
+Para solicitudes que mezclen ambos dominios, llama a los dos sub-managers y
+combina sus resultados. Redacta siempre la respuesta final en español.
+""".strip()
+
+INFORMACION_MANAGER_INSTRUCTIONS = """
+Eres el sub-manager de Información de Parachute S.A. No hablas directamente
+con el usuario: tu resultado vuelve al manager principal.
+
+Para cada consulta de información general, servicios, precios o políticas,
+llama a `resolver_faq`. No respondas con conocimiento propio ni intentes
+calendarizar citas o consultar el clima. Devuelve al manager principal una
+respuesta factual y concisa en español basada en el worker.
+""".strip()
+
+OPERACIONES_MANAGER_INSTRUCTIONS = """
+Eres el sub-manager de Operaciones de Parachute S.A. No hablas directamente
+con el usuario: tu resultado vuelve al manager principal.
+
+Para cada petición de agendar una cita o saber si una fecha es apta para
+saltar, llama a `evaluar_cita_y_clima`. No respondas con conocimiento propio
+ni atiendas consultas generales de FAQ. Devuelve al manager principal una
+respuesta clara y concisa en español basada en el worker.
+""".strip()
+
 
 def build_manager_principal(model) -> Agent:
+    """Construye la jerarquía manager principal -> sub-managers -> workers."""
     faq_agent = build_faq_agent(model)
     weather_agent = build_weather_agent(model)
 
-    # TODO: crear sub_manager_informacion (envuelve a faq_agent con as_tool)
-    # sub_manager_informacion = Agent(
-    #     name="Sub-Manager Información",
-    #     instructions="...",
-    #     model=model,
-    #     tools=[faq_agent.as_tool(tool_name="consultar_faq", tool_description="...")],
-    # )
+    sub_manager_informacion = Agent(
+        name="Sub-Manager Información",
+        instructions=INFORMACION_MANAGER_INSTRUCTIONS,
+        model=model,
+        tools=[
+            faq_agent.as_tool(
+                tool_name="resolver_faq",
+                tool_description=(
+                    "Consulta al worker de FAQs para responder preguntas sobre "
+                    "servicios, precios, políticas e información general."
+                ),
+            )
+        ],
+    )
+    sub_manager_operaciones = Agent(
+        name="Sub-Manager Operaciones",
+        instructions=OPERACIONES_MANAGER_INSTRUCTIONS,
+        model=model,
+        tools=[
+            weather_agent.as_tool(
+                tool_name="evaluar_cita_y_clima",
+                tool_description=(
+                    "Consulta al worker de citas y clima para evaluar si una "
+                    "fecha de salto puede agendarse."
+                ),
+            )
+        ],
+    )
 
-    # TODO: crear sub_manager_operaciones (envuelve a weather_agent con as_tool)
-    # sub_manager_operaciones = Agent(
-    #     name="Sub-Manager Operaciones",
-    #     instructions="...",
-    #     model=model,
-    #     tools=[weather_agent.as_tool(tool_name="calendarizar_cita", tool_description="...")],
-    # )
-
-    # TODO: crear el manager principal con
-    # tools=[sub_manager_informacion.as_tool(...), sub_manager_operaciones.as_tool(...)]
-    raise NotImplementedError("Completa los sub-managers y el manager principal (ver TODOs arriba).")
+    return Agent(
+        name="Manager Principal Parachute S.A.",
+        instructions=MANAGER_PRINCIPAL_INSTRUCTIONS,
+        model=model,
+        tools=[
+            sub_manager_informacion.as_tool(
+                tool_name="gestionar_informacion",
+                tool_description=(
+                    "Delega en el sub-manager de Información las consultas "
+                    "generales de Parachute S.A."
+                ),
+            ),
+            sub_manager_operaciones.as_tool(
+                tool_name="gestionar_operaciones",
+                tool_description=(
+                    "Delega en el sub-manager de Operaciones las solicitudes "
+                    "de citas de salto y verificación de clima."
+                ),
+            ),
+        ],
+    )
 
 
 def main() -> None:
