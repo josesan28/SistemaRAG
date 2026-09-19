@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import unittest
 from datetime import date, timedelta
 from unittest.mock import patch
@@ -12,14 +13,36 @@ from hdt5.shared.weather_tool import (
     _weather_tool_impl,
 )
 
-
 class FaqToolTests(unittest.TestCase):
-    def test_recupera_documento_de_hdt4(self) -> None:
+    def setUp(self) -> None:
+        backend_patch = patch.dict(os.environ, {"FAQ_BACKEND": "file"})
+        backend_patch.start()
+        self.addCleanup(backend_patch.stop)
+
+    def test_recupera_documento_local(self) -> None:
         resultado = _faq_tool_impl("¿Cuál es el peso máximo?")
 
         self.assertTrue(resultado["valido"])
         self.assertIn("100 kg", resultado["resultados"])
         self.assertEqual(resultado["resultados"], prepare_faq_search())
+
+    @patch("parachute_faq_tool.buscar_faq")
+    def test_backend_database_reutiliza_busqueda_vectorial(self, buscar_mock) -> None:
+        buscar_mock.return_value = {
+            "consulta": "¿Cuál es el peso máximo?",
+            "cantidad": 1,
+            "informacion_suficiente": True,
+            "resultados": [{"respuesta": "100 kg"}],
+        }
+
+        with patch.dict(os.environ, {"FAQ_BACKEND": "database"}):
+            resultado = _faq_tool_impl("¿Cuál es el peso máximo?")
+
+        self.assertTrue(resultado["valido"])
+        self.assertEqual(resultado["backend"], "database")
+        self.assertEqual(resultado["fuente"], "PostgreSQL/pgvector")
+        buscar_mock.assert_called_once_with("¿Cuál es el peso máximo?")
+
 
     def test_rechaza_consulta_vacia(self) -> None:
         resultado = _faq_tool_impl("   ")

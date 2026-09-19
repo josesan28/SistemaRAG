@@ -29,6 +29,11 @@ python -m hdt5.descentralizada.main
 python -m hdt5.jerarquica.main
 ```
 
+En HDT5, `FAQ_BACKEND=file` usa el archivo local y no requiere PostgreSQL.
+Con `FAQ_BACKEND=database`, las tres arquitecturas reutilizan la búsqueda
+vectorial de HDT4; en ese modo deben estar listos PostgreSQL, pgvector, el
+corpus cargado y el modelo de embeddings.
+
 ## Infraestructura (PostgreSQL + pgvector)
 
 ### 1. Levantar el contenedor

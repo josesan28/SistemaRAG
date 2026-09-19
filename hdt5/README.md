@@ -18,6 +18,27 @@ autenticación. Se sigue usando `GROQ_API_KEY` (ya definido en el `.env` de
 la HDT4) — el Agents SDK está configurado en `hdt5/shared/model_config.py`
 para hablar con el endpoint compatible de Groq en vez del de OpenAI.
 
+## Fuente de FAQs
+
+Las tres arquitecturas usan el mismo `faq_tool`. La variable `FAQ_BACKEND`
+permite escoger la implementación sin cambiar código:
+
+- `file` (predeterminada): carga
+  `FAQs_Parachute_SA_Guatemala_2026.txt` y no requiere PostgreSQL.
+- `database`: reutiliza la búsqueda vectorial de HDT4 con PostgreSQL,
+  pgvector y el modelo de embeddings.
+
+En el archivo `.env`:
+
+```dotenv
+FAQ_BACKEND=file
+```
+
+Para usar la base de datos, cambia el valor a `database`, levanta el
+contenedor y carga previamente `Corpus_FAQs_Parachute_SA_2026.txt` siguiendo
+las instrucciones del [README principal](../README.md).
+
+
 ## Estructura
 
 ```
