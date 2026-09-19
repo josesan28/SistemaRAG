@@ -6,6 +6,29 @@ corpus oficial `Corpus_FAQs_Parachute_SA_2026.txt`. Los embeddings se almacenan
 en PostgreSQL con pgvector y el modelo consulta la base mediante function
 calling real con el SDK compatible con OpenAI de Groq.
 
+## Hoja de Trabajo 5 — Orquestación multiagente
+
+La continuación del proyecto está en [`hdt5/`](hdt5/README.md). Implementa
+el agente de FAQs y calendarización con clima mediante tres arquitecturas:
+
+- [Centralizada](hdt5/centralizada/main.py), con su
+  [diagrama](hdt5/centralizada/DIAGRAMA.md).
+- [Descentralizada](hdt5/descentralizada/main.py), con su
+  [diagrama](hdt5/descentralizada/DIAGRAMA.md).
+- [Jerárquica](hdt5/jerarquica/main.py), con su
+  [diagrama](hdt5/jerarquica/DIAGRAMA.md).
+
+El [PDF de respuestas](hdt5/Hoja_de_Trabajo_5_Orquestacion-1.pdf) también se
+encuentra dentro de esa carpeta.
+
+Los programas se ejecutan desde la raíz:
+
+```bash
+python -m hdt5.centralizada.main
+python -m hdt5.descentralizada.main
+python -m hdt5.jerarquica.main
+```
+
 ## Infraestructura (PostgreSQL + pgvector)
 
 ### 1. Levantar el contenedor

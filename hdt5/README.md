@@ -7,7 +7,7 @@ implementada en 3 arquitecturas de orquestación multiagente con el
 
 ## Instalación
 
-Desde la raíz del repo (mismo entorno/`.env` de la HDT4 + Postgres corriendo):
+Desde la raíz del repositorio, usando el mismo archivo `.env` de la HDT4:
 
 ```bash
 pip install -r requirements.txt
@@ -24,13 +24,23 @@ para hablar con el endpoint compatible de Groq en vez del de OpenAI.
 hdt5/
 ├── shared/                  # Capa común — NO duplicar esta lógica en ninguna arquitectura
 │   ├── model_config.py      # Configura el Agents SDK para usar Groq
-│   ├── faq_tool.py          # faq_tool(query): reutiliza el RAG simple de HDT4
+│   ├── faq_tool.py          # faq_tool(query): consulta la base compartida de FAQs
 │   ├── weather_tool.py      # weather_tool(fecha): Open-Meteo + criterios de seguridad
 │   └── agents_factory.py    # build_faq_agent() y build_weather_agent(): los 2 workers reutilizables
 ├── centralizada/main.py     # 1 manager, workers llamados con Agent.as_tool()     [Persona 1 — LISTO]
 ├── descentralizada/main.py  # Agentes independientes con handoffs                [Persona 2 — LISTO]
 └── jerarquica/main.py       # Manager principal + sub-managers por dominio         [Persona 3 — LISTO]
 ```
+
+## Entregables
+
+- [Programa centralizado](centralizada/main.py) y [diagrama](centralizada/DIAGRAMA.md).
+- [Programa descentralizado](descentralizada/main.py) y
+  [diagrama](descentralizada/DIAGRAMA.md).
+- [Programa jerárquico](jerarquica/main.py) y [diagrama](jerarquica/DIAGRAMA.md).
+- [PDF con las respuestas](Hoja_de_Trabajo_5_Orquestacion-1.pdf).
+- [Fuente editable de las respuestas](PREGUNTAS.md).
+
 
 Cada `main.py` se ejecuta con, por ejemplo:
 
@@ -60,12 +70,3 @@ worker en `agents_factory.py`, y solo cablear ese worker en los 3
 `main.py`. La lógica de negocio (criterios de clima, búsqueda de FAQ) vive
 en un solo lugar — nunca se toca dentro de `centralizada/`,
 `descentralizada/` o `jerarquica/`.
-
-## Pendiente
-
-- [x] Completar `descentralizada/main.py` (persona 2)
-- [x] Completar `jerarquica/main.py` (persona 3)
-- [x] Diagrama de arquitectura centralizada (`centralizada/DIAGRAMA.md`)
-- [x] Diagrama de arquitectura descentralizada (`descentralizada/DIAGRAMA.md`)
-- [x] Diagrama de arquitectura jerárquica (`jerarquica/DIAGRAMA.md`)
-- [ ] PDF con las respuestas a las 2 preguntas del enunciado (ver `PREGUNTAS.md`, borrador para discutir juntos)
