@@ -1,5 +1,5 @@
 
-# Sistema RAG de FAQs — Parachute S.A.
+# SHoja de trabajo #5: istema RAG de FAQs — Parachute S.A.
 
 Agente de terminal que responde únicamente con información recuperada del
 corpus oficial `Corpus_FAQs_Parachute_SA_2026.txt`. Los embeddings se almacenan
