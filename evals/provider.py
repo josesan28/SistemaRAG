@@ -12,6 +12,7 @@ Qué hace:
 
 Vars de cada test que entiende este provider:
   - mensaje: lo que escribe el usuario. Acepta [HOY], [HOY+5], [HOY-2] -> fecha ISO real.
+             También acepta [HOY+5:DMY] -> fecha real en formato DD/MM/AAAA.
   - weather: seguro | marginal | no_seguro | real   (default: seguro)
              Simula Open-Meteo para que el eval sea determinístico. "real" llama a la API.
 
@@ -52,9 +53,10 @@ VALID_WEATHER_SCENARIOS = {*WEATHER_SCENARIOS, "real"}
 def _expand_dates(texto: str) -> str:
     def repl(m: re.Match) -> str:
         delta = int(m.group(1) or 0)
-        return (date.today() + timedelta(days=delta)).isoformat()
+        fecha = date.today() + timedelta(days=delta)
+        return fecha.strftime("%d/%m/%Y") if m.group(2) == "DMY" else fecha.isoformat()
 
-    return re.sub(r"\[HOY([+-]\d+)?\]", repl, texto)
+    return re.sub(r"\[HOY([+-]\d+)?(?::(DMY))?\]", repl, texto)
 
 
 def _recorder(nombre: str, real, bucket: list):

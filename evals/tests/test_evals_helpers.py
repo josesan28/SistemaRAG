@@ -33,6 +33,12 @@ class ProviderHelperTests(unittest.TestCase):
         self.assertIn(date.today().isoformat(), texto)
         self.assertIn((date.today() + timedelta(days=5)).isoformat(), texto)
 
+    def test_expande_fecha_relativa_en_formato_dia_mes_anio(self) -> None:
+        texto = _expand_dates("Quiero saltar el [HOY+5:DMY]")
+
+        esperada = (date.today() + timedelta(days=5)).strftime("%d/%m/%Y")
+        self.assertEqual(texto, f"Quiero saltar el {esperada}")
+
     def test_escenarios_documentados_son_validos(self) -> None:
         self.assertEqual(
             VALID_WEATHER_SCENARIOS,
@@ -81,6 +87,67 @@ class ToolAssertionTests(unittest.TestCase):
 
         self.assertFalse(resultado["pass"])
         self.assertIn("faq_tool", resultado["reason"])
+
+    def test_valida_cantidad_exacta_de_llamadas(self) -> None:
+        context = {
+            "config": {"call_counts": {"weather_tool": 1}},
+            "metadata": {
+                "manager_tool_calls": [],
+                "inner_tool_calls": [
+                    {"tool": "weather_tool", "input": date.today().isoformat(), "result": {}}
+                ],
+            },
+        }
+
+        resultado = tool_assertions.check_tools("respuesta", context)
+
+        self.assertTrue(resultado["pass"], resultado["reason"])
+
+    def test_falla_si_la_tool_se_llama_mas_de_una_vez(self) -> None:
+        llamada = {"tool": "weather_tool", "input": date.today().isoformat(), "result": {}}
+        context = {
+            "config": {"call_counts": {"weather_tool": 1}},
+            "metadata": {
+                "manager_tool_calls": [],
+                "inner_tool_calls": [llamada, llamada],
+            },
+        }
+
+        resultado = tool_assertions.check_tools("respuesta", context)
+
+        self.assertFalse(resultado["pass"])
+        self.assertIn("2 veces", resultado["reason"])
+
+    def test_valida_el_proximo_sabado(self) -> None:
+        dias = (5 - date.today().weekday()) % 7 or 7
+        proximo_sabado = (date.today() + timedelta(days=dias)).isoformat()
+        context = {
+            "config": {"weather_next_weekday": 5},
+            "metadata": {
+                "manager_tool_calls": [],
+                "inner_tool_calls": [
+                    {"tool": "weather_tool", "input": proximo_sabado, "result": {}}
+                ],
+            },
+        }
+
+        resultado = tool_assertions.check_tools("respuesta", context)
+
+        self.assertTrue(resultado["pass"], resultado["reason"])
+
+    def test_rechaza_numero_de_dia_invalido(self) -> None:
+        context = {
+            "config": {"weather_next_weekday": 7},
+            "metadata": {
+                "manager_tool_calls": [],
+                "inner_tool_calls": [],
+            },
+        }
+
+        resultado = tool_assertions.check_tools("respuesta", context)
+
+        self.assertFalse(resultado["pass"])
+        self.assertIn("entre 0 y 6", resultado["reason"])
 
 
 if __name__ == "__main__":
