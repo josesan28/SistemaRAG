@@ -161,3 +161,40 @@
     - type: regex
       value: 'info@parachutesa\.gt'
     - *faq_tools
+
+# --- Variantes: paráfrasis y typos ----------------------------------------------
+# Misma información que casos anteriores, pero redactada distinto: el agente debe
+# encontrar el dato y aplicarlo al caso del usuario.
+
+- description: "FAQ · paráfrasis de peso (105 kg -> no puede)"
+  vars:
+    mensaje: "Peso como 105 kilos, ¿igual me dejan tirarme del avión?"
+  assert:
+    - type: factuality
+      value: >-
+        No. El límite de peso máximo es de 100 kg (220 lbs), por lo que una persona
+        de 105 kg no puede realizar el salto.
+    - type: regex
+      value: '100\s*kg'
+    - type: llm-rubric
+      value: >-
+        Le dice claramente al usuario que con 105 kg NO puede saltar porque supera el
+        límite de 100 kg. No le sugiere que sí podría hacerlo.
+    - *faq_tools
+
+- description: "FAQ · typos en pregunta de edad (menor de 17)"
+  vars:
+    mensaje: "ola, tengo 17 añs puedo saltr aunq no vaya con mis papas??"
+  assert:
+    - type: factuality
+      value: >-
+        No. Con 17 años solo puede saltar acompañado por sus padres o tutores legales,
+        quienes deben firmar la carta de responsabilidad en el lugar. La edad mínima
+        para saltar sin ellos es 18 años con DPI o Pasaporte.
+    - type: icontains-any
+      value: ["padres", "tutor"]
+    - type: llm-rubric
+      value: >-
+        Entiende la pregunta a pesar de los errores de escritura y responde que un
+        menor de 17 años NO puede saltar sin sus padres o tutores legales.
+    - *faq_tools
