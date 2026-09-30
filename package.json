@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "eval": "promptfoo eval -c evals/promptfooconfig.yaml --output evals/reporte/reporte.html --output evals/reporte/reporte.json",
+    "eval:latency": "promptfoo eval -c evals/promptfooconfig.yaml --filter-pattern Latencia --no-cache"
+  },
+  "devDependencies": {
+    "promptfoo": "^0.123.1"
+  }
+}

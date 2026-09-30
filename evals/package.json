@@ -1,0 +1,11 @@
+{
+  "name": "parachute-evals",
+  "private": true,
+  "scripts": {
+    "eval": "cd .. && promptfoo eval -c evals/promptfooconfig.yaml --output evals/reporte/reporte.html --output evals/reporte/reporte.json",
+    "view": "cd .. && promptfoo view"
+  },
+  "devDependencies": {
+    "promptfoo": "latest"
+  }
+}
