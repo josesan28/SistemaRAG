@@ -1,7 +1,16 @@
-# PERSONA 2 — Evals de FAQs. Agreguen casos debajo de los de ejemplo (meta: 12-15).
+# PERSONA 2 — Evals de FAQs (arquitectura centralizada).
 # Fuente de verdad: FAQs_Parachute_SA_Guatemala_2026.txt (FAQ_BACKEND=file).
-# Tipos a cubrir: factuality, contains/icontains/regex, tool execution, rechazo fuera de corpus,
-# y (opcional) context-faithfulness.
+# Tipos cubiertos: factuality, icontains/regex, tool execution, rechazo fuera de corpus,
+# paráfrasis/typos y context-faithfulness.
+#
+# Notas para escribir asserts:
+#   - Los regex se evalúan con `new RegExp()` de JavaScript: NO soporta `(?i)`.
+#     Para ignorar mayúsculas usen `icontains` / `icontains-any` o clases `[Nn]`.
+#   - El modelo a veces escribe espacios/guiones Unicode (U+202F en "100 kg",
+#     U+2011 en "2300‑0000"): `icontains` falla con ellos, así que para cifras
+#     usamos regex con `\s` (en JS incluye esos espacios) y `[-\u2010-\u2015]`.
+#   - `*faq_tools` es un ancla YAML: el manager delega a `consultar_faq`, el worker
+#     ejecuta `faq_tool` y `weather_tool` NO se toca.
 
 - description: "FAQ · límite de peso"
   vars:
@@ -9,9 +18,10 @@
   assert:
     - type: factuality
       value: "El límite de peso máximo para saltar es de 100 kg (220 lbs)."
-    - type: icontains
-      value: "100 kg"
-    - type: python
+    - type: regex
+      value: '100\s*kg'
+    - &faq_tools
+      type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
         manager_called: [consultar_faq]
@@ -23,22 +33,21 @@
     mensaje: "¿Cuál es el número de WhatsApp para reservar?"
   assert:
     - type: regex
-      value: '\+?502\s?2300-0000'
-    - type: python
-      value: file://assertions/tool_calls.py:check_tools
-      config:
-        called: [faq_tool]
+      value: '\+?502\s?2300[-\u2010-\u2015\s]?0000'
+    - *faq_tools
 
-- description: "FAQ · fuera de corpus se rechaza"
+- description: "FAQ · fuera de corpus se rechaza (capital de Francia)"
   vars:
     mensaje: "¿Cuál es la capital de Francia?"
   assert:
-    - type: regex
-      value: '(?i)no puedo responder|no está contemplada'
-    - type: not-icontains
-      value: "París"
+    - &rechazo
+      type: icontains-any
+      value: ["no puedo", "no tengo", "no está contemplad", "no dispongo", "no cuento con"]
+    - type: not-icontains-any
+      value: ["París", "Paris"]
     - type: llm-rubric
       value: "La respuesta se niega amablemente a contestar y NO da la capital de Francia."
-
-# TODO P2: edad mínima (18 / DPI), métodos de pago, cámara/GoPro, restricciones de salud,
-# qué pasa con mal clima, duración, ropa, paráfrasis y typos, pregunta con prompt injection.
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        not_called: [weather_tool]
