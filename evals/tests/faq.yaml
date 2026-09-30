@@ -51,3 +51,74 @@
       value: file://assertions/tool_calls.py:check_tools
       config:
         not_called: [weather_tool]
+
+# --- Requisitos y restricciones -------------------------------------------------
+
+- description: "FAQ · edad mínima"
+  vars:
+    mensaje: "¿Cuál es la edad mínima para poder saltar?"
+  assert:
+    - type: factuality
+      value: >-
+        La edad mínima es de 18 años con identificación oficial (DPI o Pasaporte).
+        Los menores de 16 y 17 años solo pueden saltar acompañados por sus padres
+        o tutores legales, firmando una carta de responsabilidad.
+    - type: regex
+      value: '18\s*años'
+    - type: icontains
+      value: "DPI"
+    - *faq_tools
+
+- description: "FAQ · restricciones de salud"
+  vars:
+    mensaje: "¿Hay restricciones de salud para saltar?"
+  assert:
+    - type: factuality
+      value: >-
+        No pueden saltar personas con problemas cardíacos severos, epilepsia,
+        embarazo o bajo la influencia de alcohol o drogas. Tampoco se recomienda
+        si se hizo buceo en las 24 horas previas.
+    - type: icontains-all
+      value: ["epilepsia", "embaraz", "alcohol"]
+    - type: regex
+      value: '24\s*horas'
+    - *faq_tools
+
+# --- Preparación para el día del evento -----------------------------------------
+
+- description: "FAQ · cámara / GoPro"
+  vars:
+    mensaje: "¿Puedo llevar mi GoPro para grabar mi salto?"
+  assert:
+    - type: factuality
+      value: >-
+        No. Por normativas de seguridad aeronáutica no se permite llevar cámaras ni
+        celulares personales durante el salto; Parachute S.A. ofrece paquetes
+        profesionales de fotografía y video tomados por sus camarógrafos aéreos.
+    - type: icontains-any
+      value: ["no se permite", "no está permitido", "no puedes", "no es posible"]
+    - *faq_tools
+
+- description: "FAQ · ropa recomendada"
+  vars:
+    mensaje: "¿Qué ropa y calzado debo usar el día del salto?"
+  assert:
+    - type: factuality
+      value: >-
+        Se recomienda ropa cómoda y deportiva (pants o shorts y playera) y tenis con
+        cintas bien sujetas; hay que evitar sandalias, zapatos con tacón o botas pesadas.
+    - type: icontains-all
+      value: ["tenis", "sandalias"]
+    - *faq_tools
+
+- description: "FAQ · duración de la experiencia"
+  vars:
+    mensaje: "¿Cuánto tiempo dura toda la experiencia?"
+  assert:
+    - type: factuality
+      value: >-
+        Hay que contemplar entre 3 y 4 horas en el lugar (registro, charla de
+        seguridad, arnés, vuelo en avión de 15-20 minutos, salto y reconocimientos).
+    - type: regex
+      value: '3\s*(a|y|-|–|—)\s*4\s*horas'
+    - *faq_tools
