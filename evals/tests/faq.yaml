@@ -15,7 +15,13 @@
 - description: "FAQ · límite de peso"
   vars:
     mensaje: "¿Cuál es el límite de peso para realizar el salto?"
+    context: &corpus file://../FAQs_Parachute_SA_Guatemala_2026.txt
   assert:
+    - &fiel
+      type: python
+      value: file://assertions/faq_checks.py:context_faithfulness
+      config:
+        threshold: 0.8
     - type: factuality
       value: "El límite de peso máximo para saltar es de 100 kg (220 lbs)."
     - type: regex
