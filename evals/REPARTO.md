@@ -13,12 +13,14 @@ Arquitectura evaluada: **centralizada** (la elegida en `hdt5/PREGUNTAS.md`).
 - [ ] Al final: correr todo, generar `evals/reporte/reporte.html`, revisar que todo pase o esté justificado, entregar
 
 ## Persona 2 — Evals de FAQs (`tests/faq.yaml`)
-- [ ] 12-15 casos: pesos, edad, pagos, cámara/GoPro, salud, mal clima, duración, ropa, contacto
-- [ ] `factuality` (con referencia del .txt) + `icontains`/`regex` para datos exactos
-- [ ] Tool execution: `consultar_faq` -> `faq_tool`, y `weather_tool` NO llamada
-- [ ] Rechazo fuera de corpus (capital de Francia, precio de otro producto, prompt injection)
-- [ ] Variantes con paráfrasis y typos
-- [ ] Opcional: `context-faithfulness` usando el .txt como `vars.context`
+- [x] 12-15 casos: pesos, edad, pagos, cámara/GoPro, salud, mal clima, duración, ropa, contacto
+- [x] `factuality` (con referencia del .txt) + `icontains`/`regex` para datos exactos
+- [x] Tool execution: `consultar_faq` -> `faq_tool`, y `weather_tool` NO llamada
+- [x] Rechazo fuera de corpus (capital de Francia, precio de otro producto, prompt injection)
+- [x] Variantes con paráfrasis y typos
+- [x] Opcional: `context-faithfulness` usando el .txt como `vars.context`
+  (assert propio en `assertions/faq_checks.py`; la métrica nativa no parsea las
+  respuestas del grader de Groq. Pruebas: `python tests/test_faq_checks.py`)
 
 ## Persona 3 — Evals de agendado (`tests/scheduling.yaml`)
 - [ ] 12-15 casos: seguro, marginal, no_seguro, fecha pasada, fuera de 16 días, "el próximo sábado", formato raro

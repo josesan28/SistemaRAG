@@ -51,6 +51,7 @@ de la caché no representa el tiempo real del agente.
 | `tests/faq.yaml` | Evals de FAQs | P2 |
 | `tests/scheduling.yaml` | Evals de agendado de citas | P3 |
 | `assertions/tool_calls.py` | Assert de *tool execution* (`check_tools`) | P1 crea, P3/P2 extienden |
+| `assertions/faq_checks.py` | Assert de *context-faithfulness* para FAQs | P2 |
 
 ## Cómo escribir un test
 
