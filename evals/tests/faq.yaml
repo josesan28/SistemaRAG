@@ -122,3 +122,42 @@
     - type: regex
       value: '3\s*(a|y|-|–|—)\s*4\s*horas'
     - *faq_tools
+
+# --- Reservas, pagos y contacto -------------------------------------------------
+
+- description: "FAQ · métodos de pago"
+  vars:
+    mensaje: "¿Qué métodos de pago aceptan?"
+  assert:
+    - type: factuality
+      value: >-
+        Se aceptan transferencias bancarias, tarjetas de crédito/débito (Visa y
+        Mastercard) y cuotas sin intereses según bancos participantes.
+    - type: icontains-all
+      value: ["transferencia", "visa", "mastercard"]
+    - *faq_tools
+
+# Pregunta de POLÍTICA con palabras de clima: debe ir a consultar_faq, no a
+# calendarizar_cita. Sin fecha concreta para que no dependa del día en que se corra.
+- description: "FAQ · política de mal clima (no debe consultar el clima)"
+  vars:
+    mensaje: "¿Cuál es su política si el día del evento llueve o hay mucho viento y no se puede saltar?"
+  assert:
+    - type: factuality
+      value: >-
+        Por seguridad, con mal tiempo el salto se reprograma para una fecha de reserva
+        (30 de septiembre o el siguiente fin de semana disponible) o se ofrece un
+        crédito válido por 1 año.
+    - type: regex
+      value: '30\s*de\s*septiembre'
+    - type: regex
+      value: '(1|un)\s*año'
+    - *faq_tools
+
+- description: "FAQ · correo de contacto"
+  vars:
+    mensaje: "¿A qué correo electrónico puedo escribirles si tengo más dudas?"
+  assert:
+    - type: regex
+      value: 'info@parachutesa\.gt'
+    - *faq_tools
