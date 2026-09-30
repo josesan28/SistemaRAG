@@ -12,6 +12,14 @@ env/
 .vscode/
 .idea/
 
+# Node / promptfoo
+node_modules/
+.promptfoo/
+
 # OS
 .DS_Store
 Thumbs.db
+
+
+# agents AI
+AGENTS.md

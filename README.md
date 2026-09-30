@@ -6,6 +6,34 @@ corpus oficial `Corpus_FAQs_Parachute_SA_2026.txt`. Los embeddings se almacenan
 en PostgreSQL con pgvector y el modelo consulta la base mediante function
 calling real con el SDK compatible con OpenAI de Groq.
 
+## Hoja de Trabajo 5 — Orquestación multiagente
+
+La continuación del proyecto está en [`hdt5/`](hdt5/README.md). Implementa
+el agente de FAQs y calendarización con clima mediante tres arquitecturas:
+
+- [Centralizada](hdt5/centralizada/main.py), con su
+  [diagrama](hdt5/centralizada/DIAGRAMA.md).
+- [Descentralizada](hdt5/descentralizada/main.py), con su
+  [diagrama](hdt5/descentralizada/DIAGRAMA.md).
+- [Jerárquica](hdt5/jerarquica/main.py), con su
+  [diagrama](hdt5/jerarquica/DIAGRAMA.md).
+
+El [PDF de respuestas](hdt5/Hoja_de_Trabajo_5_Orquestacion-1.pdf) también se
+encuentra dentro de esa carpeta.
+
+Los programas se ejecutan desde la raíz:
+
+```bash
+python -m hdt5.centralizada.main
+python -m hdt5.descentralizada.main
+python -m hdt5.jerarquica.main
+```
+
+En HDT5, `FAQ_BACKEND=file` usa el archivo local y no requiere PostgreSQL.
+Con `FAQ_BACKEND=database`, las tres arquitecturas reutilizan la búsqueda
+vectorial de HDT4; en ese modo deben estar listos PostgreSQL, pgvector, el
+corpus cargado y el modelo de embeddings.
+
 ## Infraestructura (PostgreSQL + pgvector)
 
 ### 1. Levantar el contenedor
@@ -149,4 +177,4 @@ ocurre si hay mal clima?”. El agente debe limitarse a la evidencia recuperada.
 
 ## Video del funcionamiento del Agente
 
-Para ver el video de prueba haz click [aquí](https://youtu.be/b2qYmD8pKPQ)
+Para ver el video de prueba haz click [aquí](https://youtu.be/LKr61dtvq5M)

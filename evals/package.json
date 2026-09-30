@@ -1,0 +1,14 @@
+{
+  "name": "parachute-evals",
+  "private": true,
+  "scripts": {
+    "check": "promptfoo validate config -c promptfooconfig.yaml",
+    "eval": "promptfoo eval -c promptfooconfig.yaml --no-cache --output reporte/reporte.html --output reporte/reporte.json",
+    "eval:latency": "promptfoo eval -c promptfooconfig.yaml --no-cache --filter-pattern \"Latencia\"",
+    "test:helpers": "python tests/test_evals_helpers.py",
+    "view": "promptfoo view"
+  },
+  "devDependencies": {
+    "promptfoo": "0.123.1"
+  }
+}

@@ -1,0 +1,52 @@
+# PERSONA 3 — Evals de agendado de citas (clima simulado, determinístico).
+# Vars útiles:  mensaje con [HOY+N]  |  weather: seguro | marginal | no_seguro | real
+# Agreguen casos debajo (meta: 12-15).
+
+- description: "Cita · día seguro, fecha relativa convertida bien"
+  vars:
+    mensaje: "Quiero agendar un salto para el [HOY+5]"
+    weather: seguro
+  assert:
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        weather_date_offset: 5
+        weather_verdict: seguro
+    - type: llm-rubric
+      value: "Informa que la fecha es segura/apta para saltar y no la rechaza."
+
+- description: "Cita · día no seguro NO se agenda"
+  vars:
+    mensaje: "Agéndame para el [HOY+2]"
+    weather: no_seguro
+  assert:
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        called: [weather_tool]
+        weather_date_offset: 2
+        weather_verdict: no_seguro
+    - type: llm-rubric
+      value: "Indica que NO se puede agendar ese día por el clima y sugiere elegir otra fecha."
+
+- description: "Cita · fecha fuera de la ventana de 16 días"
+  vars:
+    mensaje: "Quiero saltar el [HOY+30]"
+    weather: seguro
+  assert:
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        called: [weather_tool]
+        weather_valido: false
+    - type: regex
+      value: '16'
+    - type: not-icontains
+      value: "es seguro"
+
+# TODO P3: marginal (solo tándem experimentado), fecha pasada ([HOY-1]), mensaje sin fecha
+# (no debe llamar weather_tool y debe pedirla), formato raro, "el próximo sábado",
+# consulta mixta FAQ+cita (ambas tools), y factuality sobre la respuesta final.
