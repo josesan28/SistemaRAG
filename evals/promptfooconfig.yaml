@@ -1,0 +1,31 @@
+# HDT6 — Evals de Parachute S.A. (arquitectura elegida en HDT5: CENTRALIZADA)
+# Ejecutar desde evals/: npm run eval
+description: "HDT6 Evals — Parachute S.A. (FAQs + agendado de citas)"
+
+prompts:
+  - "{{mensaje}}"
+
+providers:
+  - id: file://provider.py
+    label: centralizada
+
+# Grader (LLM que juzga factuality / llm-rubric). Usamos Groq para no necesitar otra key.
+# Si el modelo no está disponible en su cuenta de Groq, cambien el id aquí (un solo lugar).
+defaultTest:
+  options:
+    provider:
+      id: openai:chat:openai/gpt-oss-120b
+      config:
+        apiBaseUrl: https://api.groq.com/openai/v1
+        apiKeyEnvar: GROQ_API_KEY
+        temperature: 0
+
+# Un caso a la vez: provider.py parchea funciones de módulo y Groq tiene rate limit.
+evaluateOptions:
+  maxConcurrency: 1
+  delay: 1500
+
+tests:
+  - file://tests/faq.yaml          # Persona 2
+  - file://tests/scheduling.yaml   # Persona 3
+  - file://tests/latency.yaml      # Persona 1

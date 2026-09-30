@@ -1,0 +1,44 @@
+# PERSONA 2 — Evals de FAQs. Agreguen casos debajo de los de ejemplo (meta: 12-15).
+# Fuente de verdad: FAQs_Parachute_SA_Guatemala_2026.txt (FAQ_BACKEND=file).
+# Tipos a cubrir: factuality, contains/icontains/regex, tool execution, rechazo fuera de corpus,
+# y (opcional) context-faithfulness.
+
+- description: "FAQ · límite de peso"
+  vars:
+    mensaje: "¿Cuál es el límite de peso para realizar el salto?"
+  assert:
+    - type: factuality
+      value: "El límite de peso máximo para saltar es de 100 kg (220 lbs)."
+    - type: icontains
+      value: "100 kg"
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [consultar_faq]
+        called: [faq_tool]
+        not_called: [weather_tool]
+
+- description: "FAQ · contacto (regex de teléfono)"
+  vars:
+    mensaje: "¿Cuál es el número de WhatsApp para reservar?"
+  assert:
+    - type: regex
+      value: '\+?502\s?2300-0000'
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        called: [faq_tool]
+
+- description: "FAQ · fuera de corpus se rechaza"
+  vars:
+    mensaje: "¿Cuál es la capital de Francia?"
+  assert:
+    - type: regex
+      value: '(?i)no puedo responder|no está contemplada'
+    - type: not-icontains
+      value: "París"
+    - type: llm-rubric
+      value: "La respuesta se niega amablemente a contestar y NO da la capital de Francia."
+
+# TODO P2: edad mínima (18 / DPI), métodos de pago, cámara/GoPro, restricciones de salud,
+# qué pasa con mal clima, duración, ropa, paráfrasis y typos, pregunta con prompt injection.

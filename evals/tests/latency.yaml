@@ -1,0 +1,30 @@
+# PERSONA 1 — Latencia (ms). `latency` mide el tiempo total de call_api (manager + worker + tool).
+# Umbrales iniciales: CALIBRAR tras la primera corrida real (ver p95 en `promptfoo view`).
+- description: "Latencia · FAQ simple"
+  vars:
+    mensaje: "¿Qué métodos de pago aceptan?"
+  assert:
+    - type: latency
+      threshold: 15000
+    - type: icontains
+      value: "visa"
+
+- description: "Latencia · agendar cita (con clima simulado)"
+  vars:
+    mensaje: "Quiero agendar un salto para el [HOY+3]"
+    weather: seguro
+  assert:
+    - type: latency
+      threshold: 20000
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        called: [weather_tool]
+
+- description: "Latencia · consulta mixta (FAQ + cita)"
+  vars:
+    mensaje: "¿Cuál es el límite de peso y puedo saltar el [HOY+4]?"
+    weather: seguro
+  assert:
+    - type: latency
+      threshold: 30000
