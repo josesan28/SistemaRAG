@@ -1,52 +1,274 @@
-# PERSONA 3 — Evals de agendado de citas (clima simulado, determinístico).
-# Vars útiles:  mensaje con [HOY+N]  |  weather: seguro | marginal | no_seguro | real
-# Agreguen casos debajo (meta: 12-15).
+# Evalúa el flujo de agendado de citas de la arquitectura centralizada.
+# El sistema determina si una fecha es apta; no persiste ni confirma una reserva.
+# El clima se simula para que las fechas y los veredictos sean reproducibles.
+#
+# Convenciones:
+#   - [HOY+N] se convierte en una fecha ISO antes de invocar al agente.
+#   - [HOY+N:DMY] se convierte en DD/MM/AAAA para probar normalización.
+#   - weather_next_weekday usa lunes=0 ... domingo=6.
+#   - Los regex son de JavaScript y no admiten el modificador inline (?i).
 
-- description: "Cita · día seguro, fecha relativa convertida bien"
+# --- Veredictos meteorológicos -------------------------------------------------
+
+- description: "Cita · día seguro y fecha exacta"
   vars:
     mensaje: "Quiero agendar un salto para el [HOY+5]"
     weather: seguro
   assert:
+    - type: icontains-any
+      value: ["seguro", "apto", "favorable"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
         manager_called: [calendarizar_cita]
         called: [weather_tool]
         not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
         weather_date_offset: 5
         weather_verdict: seguro
-    - type: llm-rubric
-      value: "Informa que la fecha es segura/apta para saltar y no la rechaza."
+        weather_valido: true
 
-- description: "Cita · día no seguro NO se agenda"
+- description: "Cita · hoy es el límite inferior válido"
+  vars:
+    mensaje: "¿Puedo saltar hoy, [HOY]?"
+    weather: seguro
+  assert:
+    - type: icontains-any
+      value: ["seguro", "apto", "favorable"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_date_offset: 0
+        weather_verdict: seguro
+        weather_valido: true
+
+- description: "Cita · condiciones marginales"
+  vars:
+    mensaje: "Revisa si puedo reservar para el [HOY+4]"
+    weather: marginal
+  assert:
+    - type: icontains
+      value: "marginal"
+    - type: icontains-any
+      value: ["tándem", "tandem"]
+    - type: icontains-any
+      value: ["experimentado", "experiencia"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_date_offset: 4
+        weather_verdict: marginal
+        weather_valido: true
+
+- description: "Cita · día no seguro se rechaza"
   vars:
     mensaje: "Agéndame para el [HOY+2]"
     weather: no_seguro
   assert:
+    - type: icontains-any
+      value: ["no_seguro", "no seguro", "no es seguro", "no se puede"]
+    - type: icontains-any
+      value: ["otra fecha", "fecha diferente", "otro día"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
+        manager_called: [calendarizar_cita]
         called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
         weather_date_offset: 2
         weather_verdict: no_seguro
-    - type: llm-rubric
-      value: "Indica que NO se puede agendar ese día por el clima y sugiere elegir otra fecha."
+        weather_valido: true
 
-- description: "Cita · fecha fuera de la ventana de 16 días"
+# --- Límites de la ventana de Open-Meteo ---------------------------------------
+
+- description: "Cita · fecha pasada"
   vars:
-    mensaje: "Quiero saltar el [HOY+30]"
+    mensaje: "Quiero reservar para ayer, [HOY-1]"
     weather: seguro
   assert:
+    - type: icontains-any
+      value: ["ya pasó", "fecha pasada", "de hoy en adelante"]
+    - type: not-icontains-any
+      value: ["es seguro", "es apto", "condiciones favorables"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
+        manager_called: [calendarizar_cita]
         called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_date_offset: -1
         weather_valido: false
-    - type: regex
-      value: '16'
-    - type: not-icontains
-      value: "es seguro"
 
-# TODO P3: marginal (solo tándem experimentado), fecha pasada ([HOY-1]), mensaje sin fecha
-# (no debe llamar weather_tool y debe pedirla), formato raro, "el próximo sábado",
-# consulta mixta FAQ+cita (ambas tools), y factuality sobre la respuesta final.
+- description: "Cita · último día de la ventana es válido"
+  vars:
+    mensaje: "Consulta disponibilidad para el [HOY+15]"
+    weather: seguro
+  assert:
+    - type: icontains-any
+      value: ["seguro", "apto", "favorable"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_date_offset: 15
+        weather_verdict: seguro
+        weather_valido: true
+
+- description: "Cita · primer día fuera de la ventana"
+  vars:
+    mensaje: "Quiero saltar el [HOY+16]"
+    weather: seguro
+  assert:
+    - type: regex
+      value: '16\s*días'
+    - type: icontains-any
+      value: ["fuera", "rango", "ventana", "no se puede"]
+    - type: not-icontains-any
+      value: ["es seguro", "es apto", "condiciones favorables"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_date_offset: 16
+        weather_valido: false
+
+# --- Comprensión y normalización de fechas -------------------------------------
+
+- description: "Cita · interpreta el próximo sábado"
+  vars:
+    mensaje: "Quisiera saltar el próximo sábado"
+    weather: seguro
+  assert:
+    - type: icontains-any
+      value: ["seguro", "apto", "favorable"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_next_weekday: 5
+        weather_verdict: seguro
+        weather_valido: true
+
+- description: "Cita · normaliza fecha en formato DD/MM/AAAA"
+  vars:
+    mensaje: "Quiero una cita para el [HOY+6:DMY]"
+    weather: seguro
+  assert:
+    - type: icontains-any
+      value: ["seguro", "apto", "favorable"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_date_offset: 6
+        weather_verdict: seguro
+        weather_valido: true
+
+- description: "Cita · solicitud sin fecha pide aclaración"
+  vars:
+    mensaje: "Quiero agendar un salto en paracaídas"
+    weather: seguro
+  assert:
+    - type: icontains-any
+      value: ["fecha", "día", "cuándo"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        not_called: [weather_tool, faq_tool]
+        call_counts: {weather_tool: 0}
+
+- description: "Cita · fecha imposible pide corrección"
+  vars:
+    mensaje: "Quiero reservar para el 31/02/2027"
+    weather: seguro
+  assert:
+    - type: icontains-any
+      value: ["fecha", "válida", "inválida", "no existe", "correcta"]
+    - type: not-icontains-any
+      value: ["es seguro", "es apto", "condiciones favorables"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        not_called: [weather_tool, faq_tool]
+        call_counts: {weather_tool: 0}
+
+# --- Enrutamiento ---------------------------------------------------------------
+
+- description: "Cita · consulta mixta FAQ y fecha"
+  vars:
+    mensaje: "¿Cuál es el límite de peso y puedo saltar el [HOY+8]?"
+    weather: seguro
+  assert:
+    - type: regex
+      value: '100\s*kg'
+    - type: icontains-any
+      value: ["seguro", "apto", "favorable"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [consultar_faq, calendarizar_cita]
+        called: [faq_tool, weather_tool]
+        call_counts: {faq_tool: 1, weather_tool: 1}
+        weather_date_offset: 8
+        weather_verdict: seguro
+        weather_valido: true
+
+- description: "Cita · paráfrasis informal"
+  vars:
+    mensaje: "¿Cómo pinta el clima para tirarme del avión el [HOY+7]?"
+    weather: marginal
+  assert:
+    - type: icontains
+      value: "marginal"
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_date_offset: 7
+        weather_verdict: marginal
+        weather_valido: true
+
+- description: "Cita · typos en solicitud"
+  vars:
+    mensaje: "Kiero agendr un slto para el [HOY+3], se puede?"
+    weather: no_seguro
+  assert:
+    - type: icontains-any
+      value: ["no_seguro", "no seguro", "no es seguro", "no se puede"]
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        manager_called: [calendarizar_cita]
+        called: [weather_tool]
+        not_called: [faq_tool]
+        call_counts: {weather_tool: 1}
+        weather_date_offset: 3
+        weather_verdict: no_seguro
+        weather_valido: true

@@ -1,4 +1,4 @@
-# PERSONA 2 — Evals de FAQs (arquitectura centralizada).
+# Evalúa el flujo de preguntas frecuentes de la arquitectura centralizada.
 # Fuente de verdad: FAQs_Parachute_SA_Guatemala_2026.txt (FAQ_BACKEND=file).
 # Tipos cubiertos: factuality, icontains/regex, tool execution, rechazo fuera de corpus,
 # paráfrasis/typos y context-faithfulness.

@@ -26,6 +26,6 @@ evaluateOptions:
   delay: 1500
 
 tests:
-  - file://tests/faq.yaml          # Persona 2
-  - file://tests/scheduling.yaml   # Persona 3
-  - file://tests/latency.yaml      # Persona 1
+  - file://tests/faq.yaml          # Preguntas frecuentes
+  - file://tests/scheduling.yaml   # Agendado de citas
+  - file://tests/latency.yaml      # Rendimiento del agente

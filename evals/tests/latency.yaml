@@ -1,4 +1,4 @@
-# PERSONA 1 — Latencia (ms). `latency` mide el tiempo total de call_api (manager + worker + tool).
+# Evalúa la latencia total de `call_api`, incluyendo manager, worker y herramientas.
 # Umbrales iniciales: CALIBRAR tras la primera corrida real (ver p95 en `promptfoo view`).
 - description: "Latencia · FAQ simple"
   vars:

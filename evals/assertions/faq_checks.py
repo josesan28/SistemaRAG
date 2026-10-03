@@ -1,4 +1,4 @@
-"""Asserts custom (Python) de Persona 2 para los evals de FAQs.
+"""Asserts personalizados para evaluar la fidelidad al contexto de FAQs.
 
 `context_faithfulness`: misma idea que la métrica `context-faithfulness` de promptfoo
 (¿cada afirmación de la respuesta está respaldada por el contexto?), pero con un

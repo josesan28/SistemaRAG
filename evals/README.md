@@ -41,17 +41,17 @@ npm run view                              # UI local con resultados
 La opción `--no-cache` es obligatoria al medir latencia; una respuesta tomada
 de la caché no representa el tiempo real del agente.
 
-## Estructura y dueños
+## Estructura
 
-| Archivo | Qué es | Dueño |
-|---|---|---|
-| `provider.py` | Ejecuta el agente y expone tool calls + contexto | P1 |
-| `promptfooconfig.yaml` | Config, grader, concurrencia | P1 |
-| `tests/latency.yaml` | Evals de latencia | P1 |
-| `tests/faq.yaml` | Evals de FAQs | P2 |
-| `tests/scheduling.yaml` | Evals de agendado de citas | P3 |
-| `assertions/tool_calls.py` | Assert de *tool execution* (`check_tools`) | P1 crea, P3/P2 extienden |
-| `assertions/faq_checks.py` | Assert de *context-faithfulness* para FAQs | P2 |
+| Archivo | Propósito |
+|---|---|
+| `provider.py` | Ejecuta el agente y expone las llamadas a herramientas y el contexto. |
+| `promptfooconfig.yaml` | Define la configuración, el grader y la concurrencia. |
+| `tests/latency.yaml` | Evalúa la latencia de los flujos principales. |
+| `tests/faq.yaml` | Evalúa las respuestas a preguntas frecuentes. |
+| `tests/scheduling.yaml` | Evalúa el flujo de agendado de citas. |
+| `assertions/tool_calls.py` | Verifica la ejecución y los argumentos de las herramientas. |
+| `assertions/faq_checks.py` | Evalúa la fidelidad de las respuestas al contexto de FAQs. |
 
 ## Cómo escribir un test
 
