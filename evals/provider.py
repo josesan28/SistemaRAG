@@ -36,8 +36,9 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / ".env")
-# El corpus con hechos reales (100 kg, +502 2300-0000, etc.) es el archivo de HDT5.
-os.environ.setdefault("FAQ_BACKEND", "file")
+# Los evals deben usar siempre el corpus local con hechos verificables
+# (100 kg, +502 2300-0000, etc.), aunque el .env de desarrollo use PostgreSQL.
+os.environ["FAQ_BACKEND"] = "file"
 
 WEATHER_SCENARIOS = {
     "seguro": dict(wind_gust_10m=15.0, temperature_2m=26.0, precipitation=0.0,

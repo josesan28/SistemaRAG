@@ -22,7 +22,8 @@ npm ci
 En PowerShell con una política de ejecución restrictiva, usa `npm.cmd` y
 `npx.cmd` en lugar de `npm` y `npx`.
 
-Requiere Node 20+ y que `python` esté en el PATH (o `PROMPTFOO_PYTHON=ruta/al/python`).
+La versión fijada de Promptfoo requiere Node 22.22+ y que `python` esté en el PATH
+(o `PROMPTFOO_PYTHON=ruta/al/python`).
 No necesitan Docker: los evals usan `FAQ_BACKEND=file` y clima **simulado**.
 
 ## Correr
@@ -77,8 +78,12 @@ de la caché no representa el tiempo real del agente.
         not_called: [weather_tool]
 ```
 
-Claves de `check_tools`: `manager_called`, `called`, `not_called`, `weather_date_offset`,
-`weather_verdict`, `weather_valido`.
+Claves de `check_tools`: `manager_called`, `called`, `not_called`, `call_counts`,
+`weather_date_offset`, `weather_next_weekday`, `weather_verdict` y `weather_valido`.
+
+Los mensajes aceptan marcadores de fecha relativos para mantener los casos vigentes:
+`[HOY]`, `[HOY+5]`, `[HOY-1]` y `[HOY+5:DMY]`. El sufijo `:DMY` genera
+`DD/MM/AAAA`; sin sufijo se usa `AAAA-MM-DD`.
 
 ## Cosas a tener en cuenta
 

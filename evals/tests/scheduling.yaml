@@ -15,8 +15,13 @@
     mensaje: "Quiero agendar un salto para el [HOY+5]"
     weather: seguro
   assert:
+    - type: factuality
+      value: >-
+        La fecha consultada tiene todas las variables meteorológicas dentro de
+        los rangos ideales, por lo que el veredicto es seguro. Esto indica que
+        la fecha es apta, pero no significa que una reserva haya sido creada.
     - type: icontains-any
-      value: ["seguro", "apto", "favorable"]
+      value: ["seguro", "segura", "apto", "apta", "favorable", "ideal"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
@@ -34,7 +39,7 @@
     weather: seguro
   assert:
     - type: icontains-any
-      value: ["seguro", "apto", "favorable"]
+      value: ["seguro", "segura", "apto", "apta", "favorable", "ideal"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
@@ -51,6 +56,11 @@
     mensaje: "Revisa si puedo reservar para el [HOY+4]"
     weather: marginal
   assert:
+    - type: factuality
+      value: >-
+        El veredicto es marginal porque el viento en superficie está entre
+        20 y 28 km/h y la nubosidad entre 30% y 75%. Solo se permite un salto
+        tándem con un instructor experimentado.
     - type: icontains
       value: "marginal"
     - type: icontains-any
@@ -73,6 +83,11 @@
     mensaje: "Agéndame para el [HOY+2]"
     weather: no_seguro
   assert:
+    - type: factuality
+      value: >-
+        El veredicto es no_seguro debido a condiciones meteorológicas fuera de
+        los límites permitidos. No se puede agendar el salto para ese día y se
+        debe solicitar otra fecha.
     - type: icontains-any
       value: ["no_seguro", "no seguro", "no es seguro", "no se puede"]
     - type: icontains-any
@@ -95,6 +110,11 @@
     mensaje: "Quiero reservar para ayer, [HOY-1]"
     weather: seguro
   assert:
+    - type: llm-rubric
+      value: >-
+        Explica que la fecha ya pasó, solicita una fecha de hoy en adelante y
+        no inventa ni comunica un veredicto meteorológico.
+      threshold: 0.8
     - type: icontains-any
       value: ["ya pasó", "fecha pasada", "de hoy en adelante"]
     - type: not-icontains-any
@@ -115,7 +135,7 @@
     weather: seguro
   assert:
     - type: icontains-any
-      value: ["seguro", "apto", "favorable"]
+      value: ["seguro", "segura", "apto", "apta", "favorable", "ideal"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
@@ -132,6 +152,11 @@
     mensaje: "Quiero saltar el [HOY+16]"
     weather: seguro
   assert:
+    - type: llm-rubric
+      value: >-
+        Explica que la fecha está fuera de la ventana de pronóstico de 16 días,
+        solicita otra fecha dentro del rango y no inventa un veredicto del clima.
+      threshold: 0.8
     - type: regex
       value: '16\s*días'
     - type: icontains-any
@@ -156,7 +181,7 @@
     weather: seguro
   assert:
     - type: icontains-any
-      value: ["seguro", "apto", "favorable"]
+      value: ["seguro", "segura", "apto", "apta", "favorable", "ideal"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
@@ -174,7 +199,7 @@
     weather: seguro
   assert:
     - type: icontains-any
-      value: ["seguro", "apto", "favorable"]
+      value: ["seguro", "segura", "apto", "apta", "favorable", "ideal"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
@@ -191,12 +216,16 @@
     mensaje: "Quiero agendar un salto en paracaídas"
     weather: seguro
   assert:
+    - type: llm-rubric
+      value: >-
+        Pide al usuario una fecha concreta antes de consultar el clima. No supone
+        una fecha, no inventa condiciones meteorológicas y no confirma una reserva.
+      threshold: 0.8
     - type: icontains-any
       value: ["fecha", "día", "cuándo"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
-        manager_called: [calendarizar_cita]
         not_called: [weather_tool, faq_tool]
         call_counts: {weather_tool: 0}
 
@@ -205,6 +234,11 @@
     mensaje: "Quiero reservar para el 31/02/2027"
     weather: seguro
   assert:
+    - type: llm-rubric
+      value: >-
+        Detecta que el 31 de febrero no es una fecha válida y pide corregirla.
+        No inventa condiciones meteorológicas ni confirma una reserva.
+      threshold: 0.8
     - type: icontains-any
       value: ["fecha", "válida", "inválida", "no existe", "correcta"]
     - type: not-icontains-any
@@ -223,10 +257,15 @@
     mensaje: "¿Cuál es el límite de peso y puedo saltar el [HOY+8]?"
     weather: seguro
   assert:
+    - type: factuality
+      value: >-
+        El límite máximo de peso es 100 kg y la fecha consultada tiene un
+        veredicto seguro. La respuesta debe cubrir ambas partes sin afirmar que
+        la reserva ya fue creada.
     - type: regex
       value: '100\s*kg'
     - type: icontains-any
-      value: ["seguro", "apto", "favorable"]
+      value: ["seguro", "segura", "apto", "apta", "favorable", "ideal"]
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:

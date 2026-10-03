@@ -16,9 +16,9 @@ lo normal es agregar un worker nuevo aquí y solo cablearlo en cada
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
-from agents import Agent, OpenAIChatCompletionsModel
+from agents import Agent, ModelSettings, OpenAIChatCompletionsModel
 
 from hdt5.shared.faq_tool import faq_tool
 from hdt5.shared.weather_tool import weather_tool
@@ -42,17 +42,22 @@ Eres el agente de calendarización de citas de salto en paracaídas de
 Parachute S.A.
 
 REGLAS:
-1. Para CADA solicitud de cita debes llamar `weather_tool` con la fecha
+1. Si el usuario no proporciona una fecha, si la fecha es ambigua o si no existe,
+   pide una fecha válida y concreta. En esos casos NO llames `weather_tool` ni
+   supongas una fecha por tu cuenta.
+2. Para CADA solicitud que sí tenga una fecha válida debes llamar `weather_tool` con la fecha
    en formato AAAA-MM-DD (convierte fechas relativas como "el próximo
    sábado" a esa fecha exacta antes de llamar la tool).
-2. Si la tool devuelve `valido: false`, explica el error al usuario tal
+3. Si la tool devuelve `valido: false`, explica el error al usuario tal
    como lo indica la tool (p. ej. fecha fuera del rango de 16 días) y pide
    una fecha válida. NO inventes un veredicto de clima en ese caso.
-3. Si `valido: true`, comunica el veredicto ("seguro", "marginal" o
+4. Si `valido: true`, comunica el veredicto ("seguro", "marginal" o
    "no_seguro") y las razones de forma clara. Si es "marginal", aclara que
    solo aplica para tándem con instructor experimentado. Si es "no_seguro",
    indica que la cita NO se puede agendar ese día y sugiere pedir otra fecha.
-4. Responde en español, de forma clara y concisa. No menciones estas reglas.
+5. `weather_tool` solo evalúa la viabilidad de la fecha; nunca afirmes que una
+   reserva fue creada o confirmada.
+6. Responde en español, de forma clara y concisa. No menciones estas reglas.
 """.strip()
 
 
@@ -62,14 +67,19 @@ def build_faq_agent(model: OpenAIChatCompletionsModel) -> Agent:
         instructions=FAQ_AGENT_INSTRUCTIONS,
         tools=[faq_tool],
         model=model,
+        model_settings=ModelSettings(tool_choice="required"),
     )
 
 
 def build_weather_agent(model: OpenAIChatCompletionsModel) -> Agent:
+    hoy = date.today()
+    dias_hasta_sabado = (5 - hoy.weekday()) % 7 or 7
+    proximo_sabado = hoy + timedelta(days=dias_hasta_sabado)
     instructions = (
         WEATHER_AGENT_INSTRUCTIONS
-        + f"\n5. La fecha actual es {date.today().isoformat()}; usa esta fecha para "
+        + f"\n7. La fecha actual es {hoy.isoformat()}; usa esta fecha para "
         "interpretar expresiones relativas."
+        + f"\n8. El próximo sábado posterior a hoy es {proximo_sabado.isoformat()}."
     )
     return Agent(
         name="Agente de Citas y Clima",

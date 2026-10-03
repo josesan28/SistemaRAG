@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 import unittest
 from datetime import date, timedelta
@@ -26,6 +27,9 @@ tool_assertions = _load_tool_assertions()
 
 
 class ProviderHelperTests(unittest.TestCase):
+    def test_provider_fuerza_corpus_local_para_evals(self) -> None:
+        self.assertEqual(os.environ.get("FAQ_BACKEND"), "file")
+
     def test_expande_fechas_relativas(self) -> None:
         texto = _expand_dates("Entre [HOY-1], [HOY] y [HOY+5]")
 

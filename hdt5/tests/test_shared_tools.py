@@ -5,6 +5,7 @@ import unittest
 from datetime import date, timedelta
 from unittest.mock import patch
 
+from hdt5.shared.agents_factory import build_faq_agent
 from hdt5.shared.faq_tool import _faq_tool_impl, prepare_faq_search
 from hdt5.shared.weather_tool import (
     FORECAST_DAYS_LIMIT,
@@ -49,6 +50,11 @@ class FaqToolTests(unittest.TestCase):
 
         self.assertFalse(resultado["valido"])
         self.assertFalse(resultado["informacion_suficiente"])
+
+    def test_agente_faq_siempre_debe_consultar_su_tool(self) -> None:
+        agente = build_faq_agent(None)
+
+        self.assertEqual(agente.model_settings.tool_choice, "required")
 
 
 class WeatherToolTests(unittest.TestCase):

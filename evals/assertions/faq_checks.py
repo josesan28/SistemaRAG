@@ -65,7 +65,10 @@ def _pedir_veredictos(pregunta: str, respuesta: str, contexto: str) -> list[dict
 
     load_dotenv(ROOT / ".env")
     cliente = OpenAI(
-        api_key=os.environ["GROQ_API_KEY"], base_url=GROQ_BASE_URL, max_retries=5
+        api_key=os.environ["GROQ_API_KEY"],
+        base_url=GROQ_BASE_URL,
+        max_retries=2,
+        timeout=45.0,
     )
     prompt = (
         NLI_PROMPT.replace("{pregunta}", pregunta)

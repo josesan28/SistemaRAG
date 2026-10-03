@@ -23,11 +23,11 @@ Arquitectura evaluada: **centralizada** (la elegida en `hdt5/PREGUNTAS.md`).
   respuestas del grader de Groq. Pruebas: `python tests/test_faq_checks.py`)
 
 ## Persona 3 — Evals de agendado (`tests/scheduling.yaml`)
-- [ ] 12-15 casos: seguro, marginal, no_seguro, fecha pasada, fuera de 16 días, "el próximo sábado", formato raro
-- [ ] Tool execution: fecha exacta enviada a `weather_tool` (`weather_date_offset`) y veredicto esperado
-- [ ] Mensaje sin fecha -> NO llama `weather_tool` y pide la fecha
-- [ ] Consulta mixta FAQ + cita -> ambas tools llamadas
-- [ ] `regex`/`icontains` sobre la respuesta y `llm-rubric`/`factuality` para el veredicto explicado
+- [x] 12-15 casos: seguro, marginal, no_seguro, fecha pasada, fuera de 16 días, "el próximo sábado", formato raro
+- [x] Tool execution: fecha exacta enviada a `weather_tool` (`weather_date_offset`) y veredicto esperado
+- [x] Mensaje sin fecha -> NO llama `weather_tool` y pide la fecha
+- [x] Consulta mixta FAQ + cita -> ambas tools llamadas
+- [x] `regex`/`icontains` sobre la respuesta y `llm-rubric`/`factuality` para el veredicto explicado
 
 ## Cobertura de la rúbrica
 | Requisito | FAQs | Citas |
