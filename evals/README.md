@@ -25,8 +25,11 @@ En PowerShell con una política de ejecución restrictiva, usa `npm.cmd` y
 La versión fijada de Promptfoo requiere Node 22.22+ y que `python` esté en el PATH
 (o `PROMPTFOO_PYTHON=ruta/al/python`). Si instalaron las dependencias en un
 entorno virtual, apunten a ese intérprete, por ejemplo
-`PROMPTFOO_PYTHON=../.venv/bin/python npm run eval`
+`PROMPTFOO_PYTHON="$(realpath -s ../.venv/bin/python)" npm run eval`
 (en Windows: `$env:PROMPTFOO_PYTHON="..\.venv\Scripts\python.exe"`).
+Usen `realpath -s`: sin `-s` se sigue el enlace simbólico hasta el Python del
+sistema y falla con `No module named 'dotenv'`. Una ruta relativa también
+funciona, pero muestra avisos `RuntimeWarning: Unexpected value in sys.prefix`.
 
 Los scripts `eval` y `eval:latency` cargan `../.env` con `--env-file`: el grader
 de `factuality` corre en Node y, sin ese flag, no encuentra `GROQ_API_KEY`
@@ -102,6 +105,21 @@ Los mensajes aceptan marcadores de fecha relativos para mantener los casos vigen
   los evals reproducibles y evita depender de PostgreSQL durante la evaluación.
 - Groq tiene rate limit: no suban `maxConcurrency`. Si el grader falla, cambien el modelo en `promptfooconfig.yaml`.
 - Cada corrida cuesta llamadas reales a Groq (manager + worker + grader). Usen `--filter-pattern` mientras desarrollan.
+- **Cuota diaria de Groq:** el plan gratuito permite 200 000 tokens por día (TPD) con
+  `openai/gpt-oss-20b`, en una ventana móvil de 24 h. Una corrida completa consume
+  aproximadamente 70 000-80 000 tokens, así que caben unas dos corridas al día.
+  Si se agota, `provider.py` marca el error como cuota (`rateLimitKind: quota`) y cada
+  caso falla al instante con el mensaje de Groq, en lugar de reintentar ~4 min por caso.
+  Cuando se libere la cuota, repitan solo los casos con error:
+  `npx promptfoo eval -c promptfooconfig.yaml --env-file ../.env --no-cache --retry-errors`.
+- Una corrida completa con cuota disponible tarda ~8 min (casos en serie, `delay: 3000`).
+- **Fechas y `weather_tool`:** si la solicitud trae una fecha concreta (`AAAA-MM-DD` o
+  `DD/MM/AAAA`) que existe en el calendario, el agente de citas está obligado a llamar
+  `weather_tool` (`tool_choice="required"`), incluso si la fecha ya pasó o está fuera de la
+  ventana de 16 días: la tool es la que valida. Sin fecha o con una fecha imposible
+  (31/02) el modelo decide y pide aclaración.
+- Los asserts de texto con espacios usan regex con `\s`: el modelo a veces escribe
+  espacios Unicode (U+202F) que `icontains` no reconoce.
 - Los umbrales de latencia en `tests/latency.yaml` ya están calibrados con la primera corrida real.
 
 ## Entrega
