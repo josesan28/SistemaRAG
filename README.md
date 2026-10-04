@@ -34,6 +34,29 @@ Con `FAQ_BACKEND=database`, las tres arquitecturas reutilizan la búsqueda
 vectorial de HDT4; en ese modo deben estar listos PostgreSQL, pgvector, el
 corpus cargado y el modelo de embeddings.
 
+## Hoja de Trabajo 6 — Evals
+
+Los evals del agente están en [`evals/`](evals/README.md) y usan
+[promptfoo](https://www.promptfoo.dev/). Evalúan la arquitectura
+**centralizada**, la elegida en HDT5, en sus dos funcionalidades: preguntas
+frecuentes y agendado de citas. Cubren:
+
+- **Factuality:** respuesta comparada con una referencia por un LLM evaluador.
+- **Determinísticos:** `contains` / `regex` sobre datos exactos.
+- **Latencia:** tiempo total de respuesta del agente.
+- **Tool execution:** herramientas llamadas y argumentos enviados.
+
+Desde `evals/` (requiere Node 22.22+ y `GROQ_API_KEY` en el `.env` de la raíz):
+
+```bash
+npm ci
+PROMPTFOO_PYTHON="$(realpath -s ../.venv/bin/python)" npm run eval
+```
+
+El reporte se genera en [`evals/reporte/reporte.html`](evals/reporte/reporte.html).
+Los detalles (estructura, cuota diaria de Groq y cómo escribir casos) están en
+el [README de evals](evals/README.md).
+
 ## Infraestructura (PostgreSQL + pgvector)
 
 ### 1. Levantar el contenedor

@@ -12,6 +12,7 @@ Qué hace:
 
 Vars de cada test que entiende este provider:
   - mensaje: lo que escribe el usuario. Acepta [HOY], [HOY+5], [HOY-2] -> fecha ISO real.
+             También acepta [HOY+5:DMY] -> fecha real en formato DD/MM/AAAA.
   - weather: seguro | marginal | no_seguro | real   (default: seguro)
              Simula Open-Meteo para que el eval sea determinístico. "real" llama a la API.
 
@@ -35,8 +36,9 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / ".env")
-# El corpus con hechos reales (100 kg, +502 2300-0000, etc.) es el archivo de HDT5.
-os.environ.setdefault("FAQ_BACKEND", "file")
+# Los evals deben usar siempre el corpus local con hechos verificables
+# (100 kg, +502 2300-0000, etc.), aunque el .env de desarrollo use PostgreSQL.
+os.environ["FAQ_BACKEND"] = "file"
 
 WEATHER_SCENARIOS = {
     "seguro": dict(wind_gust_10m=15.0, temperature_2m=26.0, precipitation=0.0,
@@ -52,9 +54,10 @@ VALID_WEATHER_SCENARIOS = {*WEATHER_SCENARIOS, "real"}
 def _expand_dates(texto: str) -> str:
     def repl(m: re.Match) -> str:
         delta = int(m.group(1) or 0)
-        return (date.today() + timedelta(days=delta)).isoformat()
+        fecha = date.today() + timedelta(days=delta)
+        return fecha.strftime("%d/%m/%Y") if m.group(2) == "DMY" else fecha.isoformat()
 
-    return re.sub(r"\[HOY([+-]\d+)?\]", repl, texto)
+    return re.sub(r"\[HOY([+-]\d+)?(?::(DMY))?\]", repl, texto)
 
 
 def _recorder(nombre: str, real, bucket: list):
@@ -108,7 +111,15 @@ def call_api(prompt: str, options: dict, context: dict) -> dict:
         manager = build_manager(get_model())
         resultado = Runner.run_sync(manager, mensaje)
     except Exception as error:  # noqa: BLE001
-        return {"error": f"{type(error).__name__}: {error}"}
+        mensaje_error = f"{type(error).__name__}: {error}"
+        # Límite DIARIO de Groq (TPD/RPD): reintentar no sirve y promptfoo
+        # esperaría ~4 min por caso. Con rateLimitKind="quota" falla de inmediato.
+        if "per day" in mensaje_error:
+            return {
+                "error": f"Quota exceeded: cuota diaria de Groq agotada. {mensaje_error}",
+                "metadata": {"rateLimitKind": "quota"},
+            }
+        return {"error": mensaje_error}
     finally:
         for p in patches:
             p.stop()

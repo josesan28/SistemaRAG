@@ -9,7 +9,7 @@ providers:
   - id: file://provider.py
     label: centralizada
 
-# Grader (LLM que juzga factuality / llm-rubric). Usamos Groq para no necesitar otra key.
+# Grader que evalúa factuality. Usamos Groq para no necesitar otra key.
 # Si el modelo no está disponible en su cuenta de Groq, cambien el id aquí (un solo lugar).
 defaultTest:
   options:
@@ -21,11 +21,12 @@ defaultTest:
         temperature: 0
 
 # Un caso a la vez: provider.py parchea funciones de módulo y Groq tiene rate limit.
+# El delay entre casos evita que los reintentos por 429 inflen la latencia medida.
 evaluateOptions:
   maxConcurrency: 1
-  delay: 1500
+  delay: 3000
 
 tests:
-  - file://tests/faq.yaml          # Persona 2
-  - file://tests/scheduling.yaml   # Persona 3
-  - file://tests/latency.yaml      # Persona 1
+  - file://tests/faq.yaml          # Preguntas frecuentes
+  - file://tests/scheduling.yaml   # Agendado de citas
+  - file://tests/latency.yaml      # Rendimiento del agente
