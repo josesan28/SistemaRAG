@@ -9,7 +9,7 @@ Arquitectura evaluada: **centralizada** (la elegida en `hdt5/PREGUNTAS.md`).
 - [x] Validación offline: configuración Promptfoo válida y helpers con pruebas unitarias
 - [ ] Correr una vez con GROQ_API_KEY real, confirmar que el grader responde y hacer push a `main`
 - [ ] Avisar a P2 y P3 (van con `git pull`)
-- [ ] Calibrar los umbrales de latencia tras la primera corrida real
+- [x] Calibrar los umbrales de latencia tras la primera corrida real
 - [ ] Al final: correr todo, generar `evals/reporte/reporte.html`, revisar que todo pase o esté justificado, entregar
 
 ## Persona 2 — Evals de FAQs (`tests/faq.yaml`)
