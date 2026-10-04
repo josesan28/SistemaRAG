@@ -5,7 +5,7 @@ import unittest
 from datetime import date, timedelta
 from unittest.mock import patch
 
-from hdt5.shared.agents_factory import build_faq_agent
+from hdt5.shared.agents_factory import build_faq_agent, contiene_fecha_concreta
 from hdt5.shared.faq_tool import _faq_tool_impl, prepare_faq_search
 from hdt5.shared.weather_tool import (
     FORECAST_DAYS_LIMIT,
@@ -132,3 +132,15 @@ class WeatherToolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FechaConcretaTests(unittest.TestCase):
+    def test_reconoce_fechas_validas(self) -> None:
+        self.assertTrue(contiene_fecha_concreta("Quiero reservar para ayer, 2026-10-02"))
+        self.assertTrue(contiene_fecha_concreta("Quiero una cita para el 09/10/2026"))
+        self.assertTrue(contiene_fecha_concreta("La fecha 2026\u201110\u201106"))
+
+    def test_ignora_textos_sin_fecha_o_con_fecha_imposible(self) -> None:
+        self.assertFalse(contiene_fecha_concreta("Quiero agendar un salto en paracaídas"))
+        self.assertFalse(contiene_fecha_concreta("Quisiera saltar el próximo sábado"))
+        self.assertFalse(contiene_fecha_concreta("Quiero reservar para el 31/02/2027"))
