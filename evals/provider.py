@@ -111,7 +111,15 @@ def call_api(prompt: str, options: dict, context: dict) -> dict:
         manager = build_manager(get_model())
         resultado = Runner.run_sync(manager, mensaje)
     except Exception as error:  # noqa: BLE001
-        return {"error": f"{type(error).__name__}: {error}"}
+        mensaje_error = f"{type(error).__name__}: {error}"
+        # Límite DIARIO de Groq (TPD/RPD): reintentar no sirve y promptfoo
+        # esperaría ~4 min por caso. Con rateLimitKind="quota" falla de inmediato.
+        if "per day" in mensaje_error:
+            return {
+                "error": f"Quota exceeded: cuota diaria de Groq agotada. {mensaje_error}",
+                "metadata": {"rateLimitKind": "quota"},
+            }
+        return {"error": mensaje_error}
     finally:
         for p in patches:
             p.stop()
