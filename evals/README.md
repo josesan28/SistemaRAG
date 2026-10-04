@@ -23,7 +23,15 @@ En PowerShell con una política de ejecución restrictiva, usa `npm.cmd` y
 `npx.cmd` en lugar de `npm` y `npx`.
 
 La versión fijada de Promptfoo requiere Node 22.22+ y que `python` esté en el PATH
-(o `PROMPTFOO_PYTHON=ruta/al/python`).
+(o `PROMPTFOO_PYTHON=ruta/al/python`). Si instalaron las dependencias en un
+entorno virtual, apunten a ese intérprete, por ejemplo
+`PROMPTFOO_PYTHON=../.venv/bin/python npm run eval`
+(en Windows: `$env:PROMPTFOO_PYTHON="..\.venv\Scripts\python.exe"`).
+
+Los scripts `eval` y `eval:latency` cargan `../.env` con `--env-file`: el grader
+de `factuality` corre en Node y, sin ese flag, no encuentra `GROQ_API_KEY`
+(error "API key is not set"). Si corren `npx promptfoo eval` a mano, agreguen
+`--env-file ../.env`.
 No necesitan Docker: los evals usan `FAQ_BACKEND=file` y clima **simulado**.
 
 ## Correr
@@ -35,7 +43,7 @@ npm run eval                              # todo + reporte HTML/JSON, sin caché
 npm run eval:latency                      # solo los tres casos de latencia
 npm run check                             # valida YAML, rutas y esquema sin llamar a Groq
 npm run test:helpers                      # prueba fechas y asserts custom sin llamar a Groq
-npx promptfoo eval -c promptfooconfig.yaml --filter-pattern "FAQ"  # solo FAQs
+npx promptfoo eval -c promptfooconfig.yaml --env-file ../.env --filter-pattern "FAQ"  # solo FAQs
 npm run view                              # UI local con resultados
 ```
 
@@ -94,7 +102,7 @@ Los mensajes aceptan marcadores de fecha relativos para mantener los casos vigen
   los evals reproducibles y evita depender de PostgreSQL durante la evaluación.
 - Groq tiene rate limit: no suban `maxConcurrency`. Si el grader falla, cambien el modelo en `promptfooconfig.yaml`.
 - Cada corrida cuesta llamadas reales a Groq (manager + worker + grader). Usen `--filter-pattern` mientras desarrollan.
-- Tras la primera corrida real, **calibren los umbrales de latencia** en `tests/latency.yaml`.
+- Los umbrales de latencia en `tests/latency.yaml` ya están calibrados con la primera corrida real.
 
 ## Entrega
 
