@@ -7,6 +7,8 @@
 #   - [HOY+N:DMY] se convierte en DD/MM/AAAA para probar normalización.
 #   - weather_next_weekday usa lunes=0 ... domingo=6.
 #   - Los regex son de JavaScript y no admiten el modificador inline (?i).
+#   - El modelo a veces usa espacios Unicode (U+202F): para frases con espacios
+#     usen regex con \s en lugar de icontains.
 
 # --- Veredictos meteorológicos -------------------------------------------------
 
@@ -88,8 +90,11 @@
         El veredicto es no_seguro debido a condiciones meteorológicas fuera de
         los límites permitidos. No se puede agendar el salto para ese día y se
         debe solicitar otra fecha.
-    - type: icontains-any
-      value: ["no_seguro", "no seguro", "no es seguro", "no se puede"]
+    # Regex con \s (incluye U+202F/U+00A0 que el modelo a veces pone entre
+    # "no" y "seguro"); icontains-any falla con esos espacios.
+    - &rechazo_no_seguro
+      type: regex
+      value: '[Nn]o[\s_]+(es[\s]+)?segur[oa]|[Nn]o[\s]+(se[\s]+)?puede|[Nn]o[\s]+es[\s]+posible'
     - type: icontains-any
       value: ["otra fecha", "fecha diferente", "otro día"]
     - type: python
@@ -279,8 +284,7 @@
     mensaje: "Kiero agendr un slto para el [HOY+3], se puede?"
     weather: no_seguro
   assert:
-    - type: icontains-any
-      value: ["no_seguro", "no seguro", "no es seguro", "no se puede"]
+    - *rechazo_no_seguro
     - type: python
       value: file://assertions/tool_calls.py:check_tools
       config:
