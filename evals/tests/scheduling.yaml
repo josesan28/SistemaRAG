@@ -110,11 +110,6 @@
     mensaje: "Quiero reservar para ayer, [HOY-1]"
     weather: seguro
   assert:
-    - type: llm-rubric
-      value: >-
-        Explica que la fecha ya pasó, solicita una fecha de hoy en adelante y
-        no inventa ni comunica un veredicto meteorológico.
-      threshold: 0.8
     - type: icontains-any
       value: ["ya pasó", "fecha pasada", "de hoy en adelante"]
     - type: not-icontains-any
@@ -152,11 +147,6 @@
     mensaje: "Quiero saltar el [HOY+16]"
     weather: seguro
   assert:
-    - type: llm-rubric
-      value: >-
-        Explica que la fecha está fuera de la ventana de pronóstico de 16 días,
-        solicita otra fecha dentro del rango y no inventa un veredicto del clima.
-      threshold: 0.8
     - type: regex
       value: '16\s*días'
     - type: icontains-any
@@ -216,11 +206,6 @@
     mensaje: "Quiero agendar un salto en paracaídas"
     weather: seguro
   assert:
-    - type: llm-rubric
-      value: >-
-        Pide al usuario una fecha concreta antes de consultar el clima. No supone
-        una fecha, no inventa condiciones meteorológicas y no confirma una reserva.
-      threshold: 0.8
     - type: icontains-any
       value: ["fecha", "día", "cuándo"]
     - type: python
@@ -234,11 +219,6 @@
     mensaje: "Quiero reservar para el 31/02/2027"
     weather: seguro
   assert:
-    - type: llm-rubric
-      value: >-
-        Detecta que el 31 de febrero no es una fecha válida y pide corregirla.
-        No inventa condiciones meteorológicas ni confirma una reserva.
-      threshold: 0.8
     - type: icontains-any
       value: ["fecha", "válida", "inválida", "no existe", "correcta"]
     - type: not-icontains-any

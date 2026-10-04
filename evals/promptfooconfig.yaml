@@ -9,7 +9,7 @@ providers:
   - id: file://provider.py
     label: centralizada
 
-# Grader (LLM que juzga factuality / llm-rubric). Usamos Groq para no necesitar otra key.
+# Grader que evalúa factuality. Usamos Groq para no necesitar otra key.
 # Si el modelo no está disponible en su cuenta de Groq, cambien el id aquí (un solo lugar).
 defaultTest:
   options:

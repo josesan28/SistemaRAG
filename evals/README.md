@@ -52,7 +52,6 @@ de la caché no representa el tiempo real del agente.
 | `tests/faq.yaml` | Evalúa las respuestas a preguntas frecuentes. |
 | `tests/scheduling.yaml` | Evalúa el flujo de agendado de citas. |
 | `assertions/tool_calls.py` | Verifica la ejecución y los argumentos de las herramientas. |
-| `assertions/faq_checks.py` | Evalúa la fidelidad de las respuestas al contexto de FAQs. |
 
 ## Cómo escribir un test
 
@@ -91,8 +90,8 @@ Los mensajes aceptan marcadores de fecha relativos para mantener los casos vigen
   ni del día en que se corra. Usen `weather: real` solo para una prueba de integración.
 - **Corpus:** los evals de FAQs usan `FAQs_Parachute_SA_Guatemala_2026.txt` (hechos reales). El corpus de
   120 FAQs de la base vectorial tiene respuestas genéricas sin datos concretos, así que no sirve para `factuality`.
-- Con `FAQ_BACKEND=file`, `faq_tool` devuelve el documento completo (no hay *retrieval*), por lo que
-  métricas como `context-recall` no aportan; si las usan, justifíquenlo en el reporte.
+- Con `FAQ_BACKEND=file`, `faq_tool` devuelve el documento completo. Esto mantiene
+  los evals reproducibles y evita depender de PostgreSQL durante la evaluación.
 - Groq tiene rate limit: no suban `maxConcurrency`. Si el grader falla, cambien el modelo en `promptfooconfig.yaml`.
 - Cada corrida cuesta llamadas reales a Groq (manager + worker + grader). Usen `--filter-pattern` mientras desarrollan.
 - Tras la primera corrida real, **calibren los umbrales de latencia** en `tests/latency.yaml`.
