@@ -1,0 +1,32 @@
+# Evalúa la latencia total de `call_api`, incluyendo manager, worker y herramientas.
+# Umbrales calibrados con la primera corrida real (FAQ ~6-16 s, cita ~10-20 s,
+# mixta ~34 s): margen de ~30 % sobre el peor caso observado, porque Groq
+# reintenta con backoff cuando aplica rate limit y eso eleva la cola de latencia.
+- description: "Latencia · FAQ simple"
+  vars:
+    mensaje: "¿Qué métodos de pago aceptan?"
+  assert:
+    - type: latency
+      threshold: 20000
+    - type: icontains
+      value: "visa"
+
+- description: "Latencia · agendar cita (con clima simulado)"
+  vars:
+    mensaje: "Quiero agendar un salto para el [HOY+3]"
+    weather: seguro
+  assert:
+    - type: latency
+      threshold: 25000
+    - type: python
+      value: file://assertions/tool_calls.py:check_tools
+      config:
+        called: [weather_tool]
+
+- description: "Latencia · consulta mixta (FAQ + cita)"
+  vars:
+    mensaje: "¿Cuál es el límite de peso y puedo saltar el [HOY+4]?"
+    weather: seguro
+  assert:
+    - type: latency
+      threshold: 45000
