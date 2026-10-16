@@ -57,6 +57,13 @@ El reporte se genera en [`evals/reporte/reporte.html`](evals/reporte/reporte.htm
 Los detalles (estructura, cuota diaria de Groq y cómo escribir casos) están en
 el [README de evals](evals/README.md).
 
+## Hoja de Trabajo 7 — MCP y A2A
+
+La integración nueva está en [`hdt7/`](hdt7/README.md). La parte de Persona 1
+incluye el servidor MCP único con transporte Streamable HTTP y el sistema
+multiagente que consume sus herramientas. El reparto y los contratos para las
+tres personas están en [`evals/REPARTO.md`](evals/REPARTO.md).
+
 ## Infraestructura (PostgreSQL + pgvector)
 
 ### 1. Levantar el contenedor
