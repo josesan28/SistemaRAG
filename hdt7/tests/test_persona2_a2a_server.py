@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import unittest
 from typing import Any
 from unittest.mock import AsyncMock, call, patch
 
+import httpx
+from a2a.client import ClientConfig, create_client
 from a2a.helpers import new_text_message
 from a2a.server.agent_execution import RequestContext
 from a2a.server.context import ServerCallContext
@@ -21,6 +24,7 @@ from a2a.types import (
 
 from hdt7.agent_card import DEFAULT_A2A_URL, TEXT_MODE, build_agent_card
 from hdt7.a2a_executor import ParachuteAgentExecutor
+from hdt7.a2a_server import create_app
 
 
 class CapturingEventQueue(EventQueue):
@@ -182,6 +186,112 @@ class AgentExecutorTests(unittest.IsolatedAsyncioTestCase):
                 call(manager, "primera", None),
                 call(manager, "segunda", first_history),
             ],
+        )
+
+
+class FakeMcpClient:
+    """Context manager controlado para comprobar el ciclo de vida MCP."""
+
+    def __init__(self) -> None:
+        self.connection = object()
+        self.enter_count = 0
+        self.exit_count = 0
+
+    async def __aenter__(self) -> object:
+        self.enter_count += 1
+        return self.connection
+
+    async def __aexit__(self, *_: Any) -> None:
+        self.exit_count += 1
+
+
+class A2AServerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_ciclo_de_vida_abre_un_solo_cliente_mcp(self) -> None:
+        executor = ParachuteAgentExecutor()
+        fake_mcp = FakeMcpClient()
+        model = object()
+        manager = object()
+
+        with (
+            patch("hdt7.a2a_server.create_mcp_client", return_value=fake_mcp),
+            patch("hdt7.a2a_server.get_model", return_value=model) as get_model_mock,
+            patch(
+                "hdt7.a2a_server.build_manager", return_value=manager
+            ) as build_manager_mock,
+            patch.object(executor, "set_manager", wraps=executor.set_manager) as set_mock,
+            patch.object(
+                executor, "clear_manager", wraps=executor.clear_manager
+            ) as clear_mock,
+            self.assertLogs("hdt7.a2a", level="INFO") as logs,
+        ):
+            app = create_app(
+                agent_card=build_agent_card("http://testserver"),
+                executor=executor,
+            )
+            async with app.router.lifespan_context(app):
+                set_mock.assert_called_once_with(manager)
+
+        self.assertEqual(fake_mcp.enter_count, 1)
+        self.assertEqual(fake_mcp.exit_count, 1)
+        get_model_mock.assert_called_once_with()
+        build_manager_mock.assert_called_once_with(model, fake_mcp.connection)
+        clear_mock.assert_called_once_with()
+        self.assertTrue(any("server.started" in line for line in logs.output))
+        self.assertTrue(any("server.stopped" in line for line in logs.output))
+
+    async def test_cliente_oficial_descubre_y_completa_una_tarea(self) -> None:
+        executor = ParachuteAgentExecutor(object())
+        app = create_app(
+            agent_card=build_agent_card("http://testserver"),
+            executor=executor,
+        )
+        transport = httpx.ASGITransport(app=app)
+        fake_mcp = FakeMcpClient()
+
+        with (
+            patch("hdt7.a2a_server.create_mcp_client", return_value=fake_mcp),
+            patch("hdt7.a2a_server.get_model", return_value=object()),
+            patch("hdt7.a2a_server.build_manager", return_value=object()),
+            patch(
+                "hdt7.a2a_executor.run_multi_agent",
+                new=AsyncMock(
+                    return_value=(
+                        "El peso máximo permitido es 220 libras.",
+                        [{"role": "user", "content": "pregunta"}],
+                    )
+                ),
+            ) as run_mock,
+        ):
+            async with app.router.lifespan_context(app):
+                async with httpx.AsyncClient(transport=transport) as http_client:
+                    client = await create_client(
+                        agent="http://testserver",
+                        client_config=ClientConfig(
+                            streaming=False,
+                            httpx_client=http_client,
+                        ),
+                    )
+                    request = SendMessageRequest(
+                        message=new_text_message(
+                            "¿Cuál es el peso máximo?",
+                            role=Role.ROLE_USER,
+                        )
+                    )
+                    responses = [
+                        response async for response in client.send_message(request)
+                    ]
+                    await client.close()
+                    await asyncio.sleep(0)
+
+        run_mock.assert_awaited_once()
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses[0].WhichOneof("payload"), "task")
+        task = responses[0].task
+        self.assertIsInstance(task, Task)
+        self.assertEqual(task.status.state, TaskState.TASK_STATE_COMPLETED)
+        self.assertEqual(
+            task.artifacts[0].parts[0].text,
+            "El peso máximo permitido es 220 libras.",
         )
 
 
