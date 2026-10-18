@@ -12,7 +12,11 @@ Ejecutar desde la raíz del repositorio (con el servidor A2A activo)::
 
 from __future__ import annotations
 
+import argparse
+import asyncio
 import os
+import sys
+from collections.abc import Callable
 
 import httpx
 from a2a.client import (
@@ -34,6 +38,7 @@ from a2a.types import (
     TaskState,
 )
 from a2a.utils.errors import A2AError
+from dotenv import load_dotenv
 
 DEFAULT_A2A_URL = "http://127.0.0.1:9999"
 # Un turno del MAS (manager + especialista + MCP + Groq) tarda 15-40 s; el
@@ -41,6 +46,8 @@ DEFAULT_A2A_URL = "http://127.0.0.1:9999"
 DEFAULT_TIMEOUT_SECONDS = 120.0
 CONNECT_TIMEOUT_SECONDS = 5.0
 JSONRPC_BINDING = "JSONRPC"
+EXIT_COMMAND = "bye"
+SEPARADOR = "=" * 70
 
 
 class TerminalClientError(Exception):
@@ -267,3 +274,110 @@ class A2ATerminalSession:
             self._client = None
         else:
             await self._http_client.aclose()
+
+
+def describe_agent_card(card: AgentCard) -> str:
+    """Resume lo que el Agent Card dice del agente remoto."""
+    lineas = [f"Conectado a: {card.name} (versión {card.version})"]
+    if card.description:
+        lineas.append(card.description)
+    if card.skills:
+        lineas.append("Habilidades publicadas:")
+        lineas.extend(f"  - {skill.name}: {skill.description}" for skill in card.skills)
+    return "\n".join(lineas)
+
+
+def run_terminal(
+    session: A2ATerminalSession,
+    *,
+    input_func: Callable[[str], str] = input,
+    output: Callable[[str], None] = print,
+) -> int:
+    """Ciclo interactivo hasta ``Bye``, Ctrl-C o fin de entrada.
+
+    La lectura de teclado ocurre FUERA del event loop y cada petición corre en
+    un ``asyncio.Runner``. Si todo el ciclo estuviera dentro de
+    ``asyncio.run``, el primer Ctrl-C mientras se escribe solo cancelaría la
+    tarea y ``input()`` seguiría esperando un Enter.
+    """
+    with asyncio.Runner() as runner:
+        try:
+            try:
+                card = runner.run(session.connect())
+            except TerminalClientError as error:
+                output(f"Error: {error}")
+                return 1
+
+            output(describe_agent_card(card))
+            output("Escribe tu mensaje. Para salir escribe 'Bye' o presiona Ctrl-C.")
+            output("-" * 70)
+
+            while True:
+                try:
+                    mensaje = input_func("\nTú: ").strip()
+                except EOFError:
+                    output("\nAgente: ¡Hasta luego!")
+                    return 0
+                if not mensaje:
+                    continue
+                if mensaje.lower() == EXIT_COMMAND:
+                    output("Agente: ¡Hasta luego!")
+                    return 0
+
+                try:
+                    respuesta = runner.run(session.ask(mensaje))
+                except TerminalClientError as error:
+                    output(f"\nAgente: [Error] {error}")
+                    continue
+                output(f"\nAgente: {respuesta}")
+        except KeyboardInterrupt:
+            output("\n\nAgente: ¡Hasta luego!")
+            return 0
+        finally:
+            runner.run(session.close())
+
+
+def _configure_console() -> None:
+    """Evita fallos con tildes y emojis en consolas de Windows.
+
+    Se replica aquí en lugar de importar ``hdt5.shared.console`` porque el
+    paquete ``hdt5.shared`` importa el Agents SDK, y la terminal no debe
+    depender del sistema multiagente.
+    """
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Lee la configuración y abre la terminal contra el servidor A2A."""
+    _configure_console()
+    load_dotenv()
+    parser = argparse.ArgumentParser(
+        description="Terminal de Parachute S.A. que actúa como cliente A2A."
+    )
+    parser.add_argument(
+        "--url",
+        default=get_a2a_url(),
+        help="URL base del servidor A2A (por defecto A2A_PUBLIC_URL o %(default)s).",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=get_timeout(),
+        help="Segundos de espera por respuesta (por defecto %(default)s).",
+    )
+    args = parser.parse_args(argv)
+    if args.timeout <= 0:
+        parser.error("--timeout debe ser mayor que cero.")
+
+    print(SEPARADOR)
+    print(" PARACHUTE S.A. — Terminal cliente A2A")
+    print(SEPARADOR)
+    print(f"Descubriendo el Agent Card en {args.url} ...")
+    return run_terminal(A2ATerminalSession(args.url, timeout=args.timeout))
+
+
+if __name__ == "__main__":
+    sys.exit(main())
