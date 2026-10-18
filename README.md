@@ -59,10 +59,24 @@ el [README de evals](evals/README.md).
 
 ## Hoja de Trabajo 7 — MCP y A2A
 
-La integración nueva está en [`hdt7/`](hdt7/README.md). La parte de Persona 1
-incluye el servidor MCP único con transporte Streamable HTTP y el sistema
-multiagente que consume sus herramientas. El reparto y los contratos para las
-tres personas están en [`evals/REPARTO.md`](evals/REPARTO.md).
+La integración nueva está en [`hdt7/`](hdt7/README.md):
+
+- un servidor MCP único con transporte Streamable HTTP que expone `faq_tool`
+  y `weather_tool`;
+- un servidor A2A que publica el sistema multiagente como un solo agente con
+  dos skills;
+- una terminal que conversa con ese agente usando solo el cliente oficial A2A.
+
+Se ejecutan en tres terminales, en este orden:
+
+```bash
+python -m hdt7.mcp_server
+python -m hdt7.a2a_server
+python -m hdt7.terminal_client
+```
+
+El reparto y los contratos para las tres personas están en
+[`evals/REPARTO.md`](evals/REPARTO.md).
 
 ## Infraestructura (PostgreSQL + pgvector)
 
