@@ -17,12 +17,23 @@ import os
 import httpx
 from a2a.client import (
     A2ACardResolver,
+    A2AClientError,
+    A2AClientTimeoutError,
     AgentCardResolutionError,
     Client,
     ClientConfig,
     create_client,
 )
-from a2a.types import AgentCard
+from a2a.helpers import get_artifact_text, get_message_text, new_text_message
+from a2a.types import (
+    AgentCard,
+    Role,
+    SendMessageRequest,
+    StreamResponse,
+    Task,
+    TaskState,
+)
+from a2a.utils.errors import A2AError
 
 DEFAULT_A2A_URL = "http://127.0.0.1:9999"
 # Un turno del MAS (manager + especialista + MCP + Groq) tarda 15-40 s; el
@@ -42,6 +53,14 @@ class ServerUnavailableError(TerminalClientError):
 
 class InvalidAgentCardError(TerminalClientError):
     """El Agent Card no existe, no es JSON válido o no es utilizable."""
+
+
+class TaskFailedError(TerminalClientError):
+    """El servidor procesó la tarea, pero no terminó en COMPLETED."""
+
+
+class EmptyResponseError(TerminalClientError):
+    """La respuesta no contiene texto que mostrar."""
 
 
 def get_a2a_url() -> str:
@@ -103,8 +122,72 @@ async def discover_agent_card(
     return card
 
 
+def build_request(text: str, context_id: str | None = None) -> SendMessageRequest:
+    """Envuelve el texto del usuario en un mensaje A2A.
+
+    No se envía ``task_id``: cada turno es una tarea nueva, porque una tarea
+    COMPLETED es terminal. Lo que une los turnos es el ``context_id``.
+    """
+    message = new_text_message(text, context_id=context_id, role=Role.ROLE_USER)
+    return SendMessageRequest(message=message)
+
+
+def response_context_id(response: StreamResponse) -> str | None:
+    """Obtiene el ``context_id`` que asignó el servidor a la respuesta."""
+    payload = response.WhichOneof("payload")
+    if payload == "task":
+        return response.task.context_id or None
+    if payload == "message":
+        return response.message.context_id or None
+    return None
+
+
+def _status_text(task: Task) -> str:
+    if not task.status.HasField("message"):
+        return ""
+    return get_message_text(task.status.message).strip()
+
+
+def extract_task_reply(task: Task) -> str:
+    """Devuelve el texto de los artefactos de una tarea COMPLETED."""
+    state = task.status.state
+    if state == TaskState.TASK_STATE_FAILED:
+        detalle = _status_text(task) or "sin detalle del servidor"
+        raise TaskFailedError(
+            f"El agente no pudo completar la solicitud ({detalle}). "
+            "Intenta de nuevo o reformula tu mensaje."
+        )
+    if state != TaskState.TASK_STATE_COMPLETED:
+        detalle = _status_text(task)
+        raise TaskFailedError(
+            f"La tarea terminó en el estado {TaskState.Name(state)}"
+            + (f": {detalle}" if detalle else ".")
+        )
+
+    textos = [get_artifact_text(artifact).strip() for artifact in task.artifacts]
+    textos = [texto for texto in textos if texto]
+    if not textos:
+        raise EmptyResponseError(
+            "La tarea se completó, pero no incluye artefactos de texto con la "
+            "respuesta del agente."
+        )
+    return "\n\n".join(textos)
+
+
+def extract_reply(response: StreamResponse) -> str:
+    """Traduce un ``StreamResponse`` no streaming al texto para el usuario."""
+    payload = response.WhichOneof("payload")
+    if payload == "task":
+        return extract_task_reply(response.task)
+    if payload == "message":
+        texto = get_message_text(response.message).strip()
+        if texto:
+            return texto
+    raise EmptyResponseError("El servidor A2A respondió sin contenido de texto.")
+
+
 class A2ATerminalSession:
-    """Conversación con un agente remoto A2A."""
+    """Conversación con un agente remoto A2A que conserva su ``context_id``."""
 
     def __init__(
         self,
@@ -120,6 +203,7 @@ class A2ATerminalSession:
         )
         self._client: Client | None = None
         self.agent_card: AgentCard | None = None
+        self.context_id: str | None = None
 
     async def connect(self) -> AgentCard:
         """Descubre el Agent Card y crea el cliente oficial no streaming."""
@@ -137,6 +221,44 @@ class A2ATerminalSession:
             ) from error
         self.agent_card = card
         return card
+
+    async def ask(self, text: str) -> str:
+        """Envía un turno y devuelve la respuesta del agente remoto."""
+        if self._client is None:
+            raise RuntimeError("Llama a connect() antes de enviar mensajes.")
+
+        request = build_request(text, self.context_id)
+        try:
+            responses = [
+                response async for response in self._client.send_message(request)
+            ]
+        except A2AClientTimeoutError as error:
+            raise TerminalClientError(
+                f"El servidor A2A no respondió en {self.timeout:.0f} s."
+            ) from error
+        except A2AClientError as error:
+            raise ServerUnavailableError(
+                f"Se perdió la comunicación con el servidor A2A ({error}). "
+                "Verifica que siga en ejecución."
+            ) from error
+        except A2AError as error:
+            raise TaskFailedError(
+                f"El servidor A2A rechazó la solicitud: {error}"
+            ) from error
+        except ValueError as error:
+            # BaseClient lanza ValueError si no llega ni task ni message.
+            raise EmptyResponseError(
+                "El servidor A2A devolvió una respuesta vacía."
+            ) from error
+
+        if not responses:
+            raise EmptyResponseError("El servidor A2A no devolvió ninguna respuesta.")
+        # En modo no streaming el SDK entrega un único StreamResponse.
+        response = responses[-1]
+        context_id = response_context_id(response)
+        if context_id:
+            self.context_id = context_id
+        return extract_reply(response)
 
     async def close(self) -> None:
         """Libera la conexión HTTP (el cliente A2A cierra la que recibe)."""
