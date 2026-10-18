@@ -33,24 +33,6 @@ python -m hdt7.terminal_client
 El orden importa: el servidor A2A se conecta al MCP al arrancar y la terminal
 descubre el Agent Card del servidor A2A al iniciar.
 
-### Qué debe verse en el video
-
-| Terminal | Logs esperados |
-| --- | --- |
-| `hdt7.mcp_server` | `tool.start` y `tool.end` por cada ejecución de `faq_tool` o `weather_tool` (`tool.error` si falla). |
-| `hdt7.a2a_server` | `server.started` al arrancar; `task.received` y `task.completed` por cada mensaje (`task.failed` si falla). |
-| `hdt7.terminal_client` | El Agent Card descubierto y al menos una FAQ y una consulta climática válida. |
-
-Ejemplos para la terminal (la fecha debe estar dentro de los próximos 16 días):
-
-```text
-¿Cuál es el límite de peso para saltar?
-¿Puedo saltar el AAAA-MM-DD?
-Bye
-```
-
-En el log A2A, los mensajes de una misma conversación tienen distinto
-`task_id` pero el mismo `context_id`.
 
 ## Servidor MCP (Persona 1)
 
